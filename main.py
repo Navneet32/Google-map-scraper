@@ -127,8 +127,21 @@ class AdvancedContactExtractor:
             self.chrome_options.add_argument("--memory-pressure-off")
             self.chrome_options.add_argument("--max_old_space_size=4096")
 
-            # Always use ChromeDriverManager for cloud deployment
-            self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.chrome_options)
+            # Try system Chrome first (for Nixpacks), fallback to ChromeDriverManager
+            try:
+                # Try with system chromedriver (Railway Nixpacks)
+                self.driver = webdriver.Chrome(options=self.chrome_options)
+                print("✅ Using system Chrome/Chromedriver")
+            except Exception as e1:
+                try:
+                    # Fallback to ChromeDriverManager
+                    self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.chrome_options)
+                    print("✅ Using ChromeDriverManager")
+                except Exception as e2:
+                    print(f"❌ Both Chrome methods failed:")
+                    print(f"   System Chrome error: {e1}")
+                    print(f"   ChromeDriverManager error: {e2}")
+                    raise Exception(f"Failed to initialize Chrome: {e2}")
 
             self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             self.wait = WebDriverWait(self.driver, 10)
