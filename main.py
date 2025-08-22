@@ -97,8 +97,9 @@ class AdvancedContactExtractor:
     def setup_browser(self):
         try:
             self.chrome_options = Options()
-            self.chrome_options.add_argument("--incognito")
-            self.chrome_options.add_argument("--headless")
+
+            # Essential headless options for Railway/cloud deployment
+            self.chrome_options.add_argument("--headless=new")  # Use new headless mode
             self.chrome_options.add_argument("--no-sandbox")
             self.chrome_options.add_argument("--disable-dev-shm-usage")
             self.chrome_options.add_argument("--disable-gpu")
@@ -106,26 +107,38 @@ class AdvancedContactExtractor:
             self.chrome_options.add_argument("--disable-features=VizDisplayCompositor")
             self.chrome_options.add_argument("--disable-extensions")
             self.chrome_options.add_argument("--disable-plugins")
-            self.chrome_options.add_argument("--disable-images")  # Speed up loading
-            self.chrome_options.add_argument("--disable-javascript")  # Speed up loading for some pages
+            self.chrome_options.add_argument("--disable-images")
+            self.chrome_options.add_argument("--disable-background-timer-throttling")
+            self.chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+            self.chrome_options.add_argument("--disable-renderer-backgrounding")
+            self.chrome_options.add_argument("--disable-background-networking")
+            self.chrome_options.add_argument("--disable-ipc-flooding-protection")
+            self.chrome_options.add_argument("--single-process")  # Important for Railway
+            self.chrome_options.add_argument("--remote-debugging-port=9222")
+            self.chrome_options.add_argument("--window-size=1920,1080")
+
+            # Anti-detection measures
             self.chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-            self.chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+            self.chrome_options.add_argument("--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
             self.chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
             self.chrome_options.add_experimental_option('useAutomationExtension', False)
 
-            # Try to use system Chrome first, fallback to ChromeDriverManager
-            try:
-                self.driver = webdriver.Chrome(options=self.chrome_options)
-            except:
-                self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.chrome_options)
+            # Memory optimization for Railway
+            self.chrome_options.add_argument("--memory-pressure-off")
+            self.chrome_options.add_argument("--max_old_space_size=4096")
+
+            # Always use ChromeDriverManager for cloud deployment
+            self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.chrome_options)
 
             self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             self.wait = WebDriverWait(self.driver, 10)
 
-            print("Browser setup completed")
+            print("✅ Browser setup completed successfully")
 
         except Exception as e:
-            print(f"Browser setup error: {e}")
+            print(f"❌ Browser setup error: {e}")
+            print(f"Error details: {str(e)}")
+            raise Exception(f"Failed to initialize Chrome browser: {e}")
 
     def extract_digit_only_numbers(data_list):
         results = []
@@ -584,15 +597,51 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
+@app.get("/test-chrome")
+async def test_chrome():
+    """Test if Chrome browser can be initialized"""
+    try:
+        print("🧪 Testing Chrome browser initialization...")
+
+        # Test Chrome setup
+        chrome_options = Options()
+        chrome_options.add_argument("--headless=new")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--single-process")
+        chrome_options.add_argument("--remote-debugging-port=9222")
+
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+        driver.get("https://www.google.com")
+        title = driver.title
+        driver.quit()
+
+        return {
+            "status": "success",
+            "message": "Chrome browser working correctly",
+            "test_page_title": title,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Chrome browser test failed: {str(e)}",
+            "timestamp": datetime.now().isoformat()
+        }
+
 @app.post("/scrape", response_model=SearchResponse)
 async def scrape_google_maps(request: SearchRequest):
     """
     Scrape Google Maps for business information
     """
     try:
-        print(f"Received scraping request: {request.query}")
+        print(f"🔍 Received scraping request: {request.query}")
+        print(f"📊 Max results: {request.max_results}, Visit websites: {request.visit_websites}")
 
         # Create extractor instance
+        print("🚀 Initializing Google Maps extractor...")
         extractor = AdvancedContactExtractor(
             search_query=request.query,
             max_results=request.max_results,
@@ -600,7 +649,9 @@ async def scrape_google_maps(request: SearchRequest):
         )
 
         # Run extraction
+        print("⚡ Starting extraction process...")
         results = extractor.run_extraction()
+        print(f"✅ Extraction completed. Results type: {type(results)}")
 
         if results and isinstance(results, list):
             # Convert results to BusinessResult objects
