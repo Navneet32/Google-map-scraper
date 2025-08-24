@@ -5,6 +5,7 @@ from typing import List, Optional
 from datetime import datetime
 import uvicorn
 import os
+import time
 import sys
 
 print("Starting Google Maps Scraper API...")
@@ -54,7 +55,7 @@ async def root():
         "version": "1.0.0",
         "status": "active",
         "port": os.environ.get('PORT', 'NOT SET'),
-        "endpoints": ["/", "/health", "/test-dependencies", "/test-chrome", "/test-google-maps", "/test-import", "/debug-scrape", "/scrape"]
+        "endpoints": ["/", "/health", "/test-dependencies", "/test-chrome", "/test-google-maps", "/test-import", "/debug-scrape", "/debug-search", "/scrape"]
     }
 
 @app.get("/health")
@@ -216,6 +217,112 @@ async def debug_scrape():
 
         finally:
             # Cleanup
+            try:
+                scraper.cleanup()
+            except:
+                pass
+
+        return debug_info
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Debug error: {str(e)}",
+            "timestamp": datetime.now().isoformat()
+        }
+
+@app.get("/debug-search")
+async def debug_search():
+    """Debug Google Maps search in detail"""
+    try:
+        print("🔍 Starting detailed search debug...")
+
+        from google_maps_scraper import GoogleMapsBusinessScraper
+        scraper = GoogleMapsBusinessScraper("coffee shops in San Francisco", max_results=1, visit_websites=False)
+
+        debug_info = {
+            "browser_setup": "❌ Not attempted",
+            "google_access": "❌ Not attempted",
+            "maps_access": "❌ Not attempted",
+            "search_attempt": "❌ Not attempted",
+            "page_details": {},
+            "errors": [],
+            "timestamp": datetime.now().isoformat()
+        }
+
+        # Setup browser
+        try:
+            scraper.setup_browser()
+            debug_info["browser_setup"] = "✅ Browser setup successful"
+
+            # Test basic Google access
+            try:
+                print("🌐 Testing basic Google access...")
+                scraper.driver.get("https://www.google.com")
+                time.sleep(3)
+
+                google_title = scraper.driver.title
+                google_url = scraper.driver.current_url
+
+                debug_info["google_access"] = f"✅ Google accessible - Title: {google_title}"
+                debug_info["page_details"]["google_title"] = google_title
+                debug_info["page_details"]["google_url"] = google_url
+
+                # Test Google Maps access
+                try:
+                    print("🗺️ Testing Google Maps access...")
+                    scraper.driver.get("https://www.google.com/maps")
+                    time.sleep(5)
+
+                    maps_title = scraper.driver.title
+                    maps_url = scraper.driver.current_url
+
+                    debug_info["maps_access"] = f"✅ Maps accessible - Title: {maps_title}"
+                    debug_info["page_details"]["maps_title"] = maps_title
+                    debug_info["page_details"]["maps_url"] = maps_url
+
+                    # Check for blocking indicators
+                    page_source_snippet = scraper.driver.page_source[:500]
+                    debug_info["page_details"]["page_source_snippet"] = page_source_snippet
+
+                    if "sorry" in maps_title.lower() or "blocked" in page_source_snippet.lower():
+                        debug_info["maps_access"] = f"❌ Maps blocked - Title: {maps_title}"
+                        debug_info["errors"].append("Google Maps appears to be blocking access")
+
+                    # Test search attempt
+                    try:
+                        print("🔍 Testing search functionality...")
+                        search_result = scraper.search_google_maps()
+
+                        if search_result:
+                            debug_info["search_attempt"] = "✅ Search method returned True"
+
+                            # Get final page details
+                            final_title = scraper.driver.title
+                            final_url = scraper.driver.current_url
+                            debug_info["page_details"]["final_title"] = final_title
+                            debug_info["page_details"]["final_url"] = final_url
+
+                        else:
+                            debug_info["search_attempt"] = "❌ Search method returned False"
+
+                    except Exception as search_e:
+                        debug_info["search_attempt"] = f"❌ Search error: {str(search_e)}"
+                        debug_info["errors"].append(f"Search: {str(search_e)}")
+
+                except Exception as maps_e:
+                    debug_info["maps_access"] = f"❌ Maps access error: {str(maps_e)}"
+                    debug_info["errors"].append(f"Maps access: {str(maps_e)}")
+
+            except Exception as google_e:
+                debug_info["google_access"] = f"❌ Google access error: {str(google_e)}"
+                debug_info["errors"].append(f"Google access: {str(google_e)}")
+
+        except Exception as browser_e:
+            debug_info["browser_setup"] = f"❌ Browser error: {str(browser_e)}"
+            debug_info["errors"].append(f"Browser: {str(browser_e)}")
+
+        finally:
             try:
                 scraper.cleanup()
             except:
