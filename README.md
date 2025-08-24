@@ -1,79 +1,73 @@
-# Google Maps Scraper API
+# Welcome to your Lovable project
 
-A FastAPI-based web service for scraping business information from Google Maps.
+## Project info
 
-## Features
+**URL**: https://lovable.dev/projects/e1b8b150-0326-4f9c-92e2-e637bde96d8a
 
-- Scrape business information from Google Maps
-- Extract contact details including emails and phone numbers
-- Visit business websites for additional contact information
-- RESTful API with JSON responses
-- CORS enabled for web applications
+## How can I edit this code?
 
-## API Endpoints
+There are several ways of editing your application.
 
-### GET /
-Returns basic API information and status.
+**Use Lovable**
 
-### GET /health
-Health check endpoint for monitoring.
+Simply visit the [Lovable Project](https://lovable.dev/projects/e1b8b150-0326-4f9c-92e2-e637bde96d8a) and start prompting.
 
-### POST /scrape
-Main scraping endpoint.
+Changes made via Lovable will be committed automatically to this repo.
 
-**Request Body:**
-```json
-{
-  "query": "restaurants in New York",
-  "max_results": 100,
-  "visit_websites": true
-}
+**Use your preferred IDE**
+
+If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+
+The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+
+Follow these steps:
+
+```sh
+# Step 1: Clone the repository using the project's Git URL.
+git clone <YOUR_GIT_URL>
+
+# Step 2: Navigate to the project directory.
+cd <YOUR_PROJECT_NAME>
+
+# Step 3: Install the necessary dependencies.
+npm i
+
+# Step 4: Start the development server with auto-reloading and an instant preview.
+npm run dev
 ```
 
-**Response:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "name": "Business Name",
-      "address": "Business Address",
-      "rating": 4.5,
-      "review_count": 123,
-      "category": "Restaurant",
-      "website": "https://example.com",
-      "mobile": "(555) 123-4567",
-      "email": "contact@example.com",
-      "secondary_email": "info@example.com",
-      "google_maps_url": "https://maps.google.com/...",
-      "search_query": "restaurants in New York",
-      "website_visited": true,
-      "additional_contacts": "{...}"
-    }
-  ],
-  "total_results": 1,
-  "message": "Successfully scraped 1 businesses"
-}
-```
+**Edit a file directly in GitHub**
 
-## Deployment
+- Navigate to the desired file(s).
+- Click the "Edit" button (pencil icon) at the top right of the file view.
+- Make your changes and commit the changes.
 
-This service is designed to be deployed on Railway.com with the following files:
-- `Procfile`: Defines the web process
-- `requirements.txt`: Python dependencies
-- `railway.json`: Railway-specific configuration
-- `runtime.txt`: Python version specification
+**Use GitHub Codespaces**
 
-## Usage
+- Navigate to the main page of your repository.
+- Click on the "Code" button (green button) near the top right.
+- Select the "Codespaces" tab.
+- Click on "New codespace" to launch a new Codespace environment.
+- Edit files directly within the Codespace and commit and push your changes once you're done.
 
-1. Deploy to Railway.com
-2. Send POST requests to `/scrape` endpoint with your search query
-3. Receive structured business data in JSON format
+## What technologies are used for this project?
 
-## Environment Variables
+This project is built with:
 
-- `PORT`: Port number (automatically set by Railway)
+- Vite
+- TypeScript
+- React
+- shadcn-ui
+- Tailwind CSS
 
-## Rate Limiting
+## How can I deploy this project?
 
-The scraper includes built-in rate limiting to avoid being blocked by Google Maps.
+Simply open [Lovable](https://lovable.dev/projects/e1b8b150-0326-4f9c-92e2-e637bde96d8a) and click on Share -> Publish.
+
+## Can I connect a custom domain to my Lovable project?
+
+Yes, you can!
+
+To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+
+Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
