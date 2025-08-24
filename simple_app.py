@@ -25,7 +25,7 @@ async def root():
         "version": "1.0.0",
         "status": "active",
         "port": os.environ.get('PORT', 'NOT SET'),
-        "endpoints": ["/", "/health", "/test-dependencies", "/test-chrome"]
+        "endpoints": ["/", "/health", "/test-dependencies", "/install-selenium", "/test-chrome"]
     }
 
 @app.get("/health")
@@ -79,6 +79,33 @@ async def test_dependencies():
         return {
             "status": "error",
             "message": f"Dependency test failed: {str(e)}",
+            "timestamp": datetime.now().isoformat()
+        }
+
+@app.get("/install-selenium")
+async def install_selenium():
+    """Try to install selenium manually"""
+    try:
+        import subprocess
+        import sys
+
+        # Try to install selenium
+        result = subprocess.run([
+            sys.executable, "-m", "pip", "install", "selenium==4.15.2"
+        ], capture_output=True, text=True, timeout=60)
+
+        return {
+            "status": "success" if result.returncode == 0 else "error",
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "return_code": result.returncode,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Manual selenium install failed: {str(e)}",
             "timestamp": datetime.now().isoformat()
         }
 
