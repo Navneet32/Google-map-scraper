@@ -78,7 +78,9 @@ class GoogleMapsBusinessScraper:
                     "--single-process",
                     "--disable-extensions",
                     "--disable-plugins",
-                    "--window-size=800,600"
+                    "--window-size=800,600",
+                    "--lang=en-US",
+                    "--accept-lang=en-US,en"
                 ]
             }
         ]
@@ -90,6 +92,12 @@ class GoogleMapsBusinessScraper:
                 self.chrome_options = Options()
                 for option in config['options']:
                     self.chrome_options.add_argument(option)
+
+                # Add language preferences to avoid non-English consent pages
+                self.chrome_options.add_experimental_option('prefs', {
+                    'intl.accept_languages': 'en-US,en',
+                    'intl.charset_default': 'UTF-8'
+                })
 
                 # Test Chrome creation
                 print(f"   Creating Chrome driver...")
@@ -204,29 +212,104 @@ class GoogleMapsBusinessScraper:
                     return False
 
             # Handle cookie consent if it appears (for both methods)
+            print("🍪 Checking for cookie consent...")
             try:
-                cookie_buttons = [
-                    "//button[contains(text(), 'Accept all')]",
-                    "//button[contains(text(), 'I agree')]",
-                    "//button[contains(text(), 'Accept')]",
-                    "//div[contains(text(), 'Accept all')]//parent::button",
-                    "//button[@aria-label='Accept all']"
-                ]
+                # Check if we're on a consent page
+                current_url = self.driver.current_url
+                page_title = self.driver.title
 
-                for button_xpath in cookie_buttons:
-                    try:
-                        accept_button = WebDriverWait(self.driver, 3).until(
-                            EC.element_to_be_clickable((By.XPATH, button_xpath))
-                        )
-                        accept_button.click()
-                        print("✅ Accepted cookies")
-                        time.sleep(3)
-                        break
-                    except:
-                        continue
+                if "consent.google.com" in current_url or "consent" in page_title.lower() or "voordat je verdergaat" in page_title.lower():
+                    print(f"🍪 Detected consent page: {page_title}")
+                    print(f"🌐 Consent URL: {current_url}")
+
+                    # Extended list of consent button selectors (multiple languages)
+                    cookie_buttons = [
+                        # English
+                        "//button[contains(text(), 'Accept all')]",
+                        "//button[contains(text(), 'I agree')]",
+                        "//button[contains(text(), 'Accept')]",
+                        "//div[contains(text(), 'Accept all')]//parent::button",
+                        "//button[@aria-label='Accept all']",
+
+                        # Dutch (specific to the detected consent page)
+                        "//button[contains(text(), 'Alles accepteren')]",
+                        "//button[contains(text(), 'Accepteren')]",
+                        "//button[contains(text(), 'Akkoord')]",
+                        "//button[contains(text(), 'Ga door naar Google Maps')]",  # Continue to Google Maps
+                        "//button[contains(text(), 'Doorgaan')]",  # Continue
+
+                        # More specific Dutch selectors
+                        "//div[contains(text(), 'Alles accepteren')]//parent::button",
+                        "//div[contains(text(), 'Accepteren')]//parent::button",
+
+                        # Generic Google consent selectors (very specific)
+                        "//button[contains(@class, 'VfPpkd-LgbsSe') and contains(@class, 'VfPpkd-LgbsSe-OWXEXe-k8QpJ')]",
+                        "//button[contains(@class, 'VfPpkd-LgbsSe')]",
+                        "//div[@role='button'][contains(@class, 'VfPpkd')]",
+                        "//button[@jsname]",
+                        "//div[@role='button']",
+
+                        # Form submission
+                        "//form//button[@type='submit']",
+                        "//input[@type='submit']",
+                        "//button[not(@disabled)]",  # Any enabled button
+                        "//div[@role='button'][not(@disabled)]"  # Any enabled div button
+                    ]
+
+                    consent_handled = False
+                    for button_xpath in cookie_buttons:
+                        try:
+                            print(f"   Trying selector: {button_xpath}")
+                            accept_button = WebDriverWait(self.driver, 2).until(
+                                EC.element_to_be_clickable((By.XPATH, button_xpath))
+                            )
+                            accept_button.click()
+                            print("✅ Clicked consent button")
+                            time.sleep(5)  # Wait for redirect
+
+                            # Check if we were redirected away from consent page
+                            new_url = self.driver.current_url
+                            if "consent.google.com" not in new_url:
+                                print("✅ Successfully handled consent and redirected")
+                                consent_handled = True
+                                break
+                            else:
+                                print("⚠️ Still on consent page, trying next selector...")
+
+                        except Exception as button_error:
+                            print(f"   ❌ Selector failed: {button_error}")
+                            continue
+
+                    if not consent_handled:
+                        print("⚠️ Could not handle consent page automatically")
+                        print("🔄 Trying alternative approach: direct navigation...")
+
+                        # Try to bypass consent by going directly to search results
+                        try:
+                            bypass_url = f"https://www.google.com/maps/search/{self.search_query.replace(' ', '+')}"
+                            print(f"🌐 Attempting bypass: {bypass_url}")
+                            self.driver.get(bypass_url)
+                            time.sleep(5)
+
+                            # Check if we're still on consent page
+                            final_url = self.driver.current_url
+                            if "consent.google.com" not in final_url:
+                                print("✅ Successfully bypassed consent page")
+                                consent_handled = True
+                            else:
+                                print("❌ Still on consent page after bypass attempt")
+
+                        except Exception as bypass_error:
+                            print(f"❌ Bypass attempt failed: {bypass_error}")
+
+                        # If still not handled, continue anyway
+                        if not consent_handled:
+                            print("⚠️ Continuing despite consent page issues...")
+                else:
+                    print("ℹ️ No consent page detected")
 
             except Exception as e:
-                print(f"ℹ️ No cookie consent found or already handled: {e}")
+                print(f"⚠️ Error handling consent: {e}")
 
             # Wait for results to load with longer timeout
             print("⏳ Waiting for search results to load...")
