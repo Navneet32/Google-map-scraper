@@ -21,20 +21,66 @@ app.add_middleware(
 @app.get("/")
 async def root():
     return {
-        "message": "Google Maps Scraper API", 
-        "version": "1.0.0", 
+        "message": "Google Maps Scraper API",
+        "version": "1.0.0",
         "status": "active",
         "port": os.environ.get('PORT', 'NOT SET'),
-        "endpoints": ["/", "/health", "/test-chrome"]
+        "endpoints": ["/", "/health", "/test-dependencies", "/test-chrome"]
     }
 
 @app.get("/health")
 async def health_check():
     return {
-        "status": "healthy", 
+        "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "port": os.environ.get('PORT', 'NOT SET')
     }
+
+@app.get("/test-dependencies")
+async def test_dependencies():
+    """Test if all Python dependencies are installed"""
+    try:
+        dependencies = {}
+
+        # Test FastAPI
+        try:
+            import fastapi
+            dependencies["fastapi"] = fastapi.__version__
+        except ImportError as e:
+            dependencies["fastapi"] = f"ERROR: {str(e)}"
+
+        # Test Selenium
+        try:
+            import selenium
+            dependencies["selenium"] = selenium.__version__
+        except ImportError as e:
+            dependencies["selenium"] = f"ERROR: {str(e)}"
+
+        # Test other dependencies
+        try:
+            import uvicorn
+            dependencies["uvicorn"] = uvicorn.__version__
+        except ImportError as e:
+            dependencies["uvicorn"] = f"ERROR: {str(e)}"
+
+        try:
+            import pydantic
+            dependencies["pydantic"] = pydantic.__version__
+        except ImportError as e:
+            dependencies["pydantic"] = f"ERROR: {str(e)}"
+
+        return {
+            "status": "success",
+            "dependencies": dependencies,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Dependency test failed: {str(e)}",
+            "timestamp": datetime.now().isoformat()
+        }
 
 @app.get("/test-chrome")
 async def test_chrome():
@@ -64,14 +110,15 @@ async def test_chrome():
         chrome_options.add_argument("--disable-features=VizDisplayCompositor")
         chrome_options.add_argument("--disable-extensions")
         chrome_options.add_argument("--disable-plugins")
-        chrome_options.add_argument("--disable-images")
-        chrome_options.add_argument("--disable-javascript")
         chrome_options.add_argument("--single-process")
         chrome_options.add_argument("--no-zygote")
         chrome_options.add_argument("--disable-background-timer-throttling")
         chrome_options.add_argument("--disable-backgrounding-occluded-windows")
         chrome_options.add_argument("--disable-renderer-backgrounding")
         chrome_options.add_argument("--window-size=1920,1080")
+
+        # Set Chrome binary location for Docker
+        chrome_options.binary_location = "/usr/bin/google-chrome"
 
         # Fix user data directory issue
         import tempfile
