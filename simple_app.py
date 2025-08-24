@@ -155,6 +155,8 @@ async def test_chrome():
         chrome_options.add_argument("--disable-features=TranslateUI")
         chrome_options.add_argument("--disable-features=VizDisplayCompositor,VizHitTestSurfaceLayer")
         chrome_options.add_argument("--disable-ipc-flooding-protection")
+        chrome_options.add_argument("--disable-dev-shm-usage")  # Critical for Docker
+        chrome_options.add_argument("--disable-software-rasterizer")
 
         # Set Chrome binary location for Docker - try multiple paths
         import os
@@ -177,29 +179,24 @@ async def test_chrome():
         else:
             print("⚠️ No Chrome binary found, using system default")
 
-        # Fix user data directory issue with timestamp and PID for uniqueness
-        import tempfile
-        import uuid
-        import time
-        import os
+        # Remove user data directory entirely - let Chrome handle it
+        # This avoids the persistent directory conflict issue
+        chrome_options.add_argument("--disable-background-networking")
+        chrome_options.add_argument("--disable-client-side-phishing-detection")
+        chrome_options.add_argument("--disable-component-update")
+        chrome_options.add_argument("--disable-hang-monitor")
+        chrome_options.add_argument("--disable-popup-blocking")
+        chrome_options.add_argument("--disable-prompt-on-repost")
+        chrome_options.add_argument("--disable-sync")
+        chrome_options.add_argument("--disable-web-resources")
+        chrome_options.add_argument("--metrics-recording-only")
+        chrome_options.add_argument("--no-crash-upload")
+        chrome_options.add_argument("--safebrowsing-disable-auto-update")
+        chrome_options.add_argument("--disable-features=TranslateUI,BlinkGenPropertyTrees")
 
-        # Create highly unique user data directory
-        timestamp = str(int(time.time() * 1000))  # milliseconds
-        pid = str(os.getpid())
-        random_id = uuid.uuid4().hex[:12]
-
-        temp_dir = tempfile.mkdtemp(prefix=f"chrome_{timestamp}_{pid}_")
-        unique_user_data_dir = f"{temp_dir}/chrome_data_{random_id}"
-
-        # Ensure directory exists
-        os.makedirs(unique_user_data_dir, exist_ok=True)
-
-        chrome_options.add_argument(f"--user-data-dir={unique_user_data_dir}")
-
-        # Also add crash dumps directory to avoid conflicts
-        crash_dir = f"{temp_dir}/crashes_{random_id}"
-        os.makedirs(crash_dir, exist_ok=True)
-        chrome_options.add_argument(f"--crash-dumps-dir={crash_dir}")
+        # Use memory-based approach instead of file system
+        chrome_options.add_argument("--memory-pressure-off")
+        chrome_options.add_argument("--max_old_space_size=4096")
 
         print("✅ Chrome options configured with unique user data directory")
 
@@ -217,31 +214,19 @@ async def test_chrome():
             driver.quit()
             print("✅ Chrome driver closed successfully")
 
-            # Clean up temp directory
-            import shutil
-            try:
-                shutil.rmtree(temp_dir)
-            except:
-                pass
-
             return {
                 "status": "success",
                 "message": "Chrome browser working correctly on Railway",
                 "method": "system-chrome",
                 "test_page_title": title,
-                "user_data_dir": unique_user_data_dir,
+                "approach": "no-user-data-dir",
                 "timestamp": datetime.now().isoformat()
             }
 
         except Exception as e:
             print(f"❌ Chrome test failed: {str(e)}")
 
-            # Clean up temp directory on error
-            import shutil
-            try:
-                shutil.rmtree(temp_dir)
-            except:
-                pass
+            # No cleanup needed since we're not using temp directories
 
             return {
                 "status": "error",
