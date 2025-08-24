@@ -44,139 +44,83 @@ class GoogleMapsBusinessScraper:
         self.setup_browser()
     
     def setup_browser(self):
-        """Setup Chrome browser with optimized configuration"""
-        try:
-            self.chrome_options = Options()
-            
-            # Essential headless options for Railway/cloud deployment - WORKING CONFIG
-            self.chrome_options.add_argument("--headless=new")  # Use new headless mode
-            self.chrome_options.add_argument("--no-sandbox")
-            self.chrome_options.add_argument("--disable-dev-shm-usage")  # Critical for Docker
-            self.chrome_options.add_argument("--disable-software-rasterizer")
-            self.chrome_options.add_argument("--disable-gpu")
-            self.chrome_options.add_argument("--disable-web-security")
-            self.chrome_options.add_argument("--disable-features=VizDisplayCompositor")
-            self.chrome_options.add_argument("--disable-extensions")
-            self.chrome_options.add_argument("--disable-plugins")
-            self.chrome_options.add_argument("--disable-images")
-            self.chrome_options.add_argument("--disable-background-timer-throttling")
-            self.chrome_options.add_argument("--disable-backgrounding-occluded-windows")
-            self.chrome_options.add_argument("--disable-renderer-backgrounding")
-            self.chrome_options.add_argument("--disable-ipc-flooding-protection")
-            self.chrome_options.add_argument("--single-process")  # Important for Railway
-            self.chrome_options.add_argument("--remote-debugging-port=9222")
-            self.chrome_options.add_argument("--window-size=1920,1080")
+        """Setup Chrome browser with progressive stability testing"""
+        print("🔧 Starting progressive Chrome setup for Railway...")
 
-            # Remove user data directory entirely - let Chrome handle it (CRITICAL FIX)
-            self.chrome_options.add_argument("--disable-background-networking")
-            self.chrome_options.add_argument("--disable-client-side-phishing-detection")
-            self.chrome_options.add_argument("--disable-component-update")
-            self.chrome_options.add_argument("--disable-hang-monitor")
-            self.chrome_options.add_argument("--disable-popup-blocking")
-            self.chrome_options.add_argument("--disable-prompt-on-repost")
-            self.chrome_options.add_argument("--disable-sync")
-            self.chrome_options.add_argument("--disable-web-resources")
-            self.chrome_options.add_argument("--metrics-recording-only")
-            self.chrome_options.add_argument("--no-crash-upload")
-            self.chrome_options.add_argument("--safebrowsing-disable-auto-update")
-            self.chrome_options.add_argument("--disable-features=TranslateUI,BlinkGenPropertyTrees")
+        # Try multiple Chrome configurations in order of stability
+        configs = [
+            {
+                "name": "Ultra-Minimal",
+                "options": [
+                    "--headless",
+                    "--no-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-gpu"
+                ]
+            },
+            {
+                "name": "Basic-Stable",
+                "options": [
+                    "--headless=new",
+                    "--no-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-gpu",
+                    "--single-process"
+                ]
+            },
+            {
+                "name": "Railway-Optimized",
+                "options": [
+                    "--headless=new",
+                    "--no-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-gpu",
+                    "--single-process",
+                    "--disable-extensions",
+                    "--disable-plugins",
+                    "--window-size=800,600"
+                ]
+            }
+        ]
 
-            # Anti-detection measures
-            self.chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-            self.chrome_options.add_argument("--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-            self.chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-            self.chrome_options.add_experimental_option('useAutomationExtension', False)
-
-            # Memory optimization for Railway
-            self.chrome_options.add_argument("--memory-pressure-off")
-            self.chrome_options.add_argument("--max_old_space_size=4096")
-
-            # Try system Chrome first (for Nixpacks), fallback to ChromeDriverManager
+        for config in configs:
             try:
-                # Try with system chromedriver (Railway Nixpacks)
-                self.driver = webdriver.Chrome(options=self.chrome_options)
-                print("✅ Using system Chrome/Chromedriver")
-            except Exception as e1:
-                try:
-                    # Fallback to ChromeDriverManager
-                    self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.chrome_options)
-                    print("✅ Using ChromeDriverManager")
-                except Exception as e2:
-                    print(f"❌ Both Chrome methods failed:")
-                    print(f"   System Chrome error: {e1}")
-                    print(f"   ChromeDriverManager error: {e2}")
-                    raise Exception(f"Failed to initialize Chrome: {e2}")
+                print(f"🧪 Trying {config['name']} configuration...")
 
-            # Apply anti-detection measures with error handling
-            try:
-                # Try multiple anti-detection approaches
-                self.driver.execute_script("""
-                    // Method 1: Try to delete webdriver property
-                    try {
-                        delete navigator.__proto__.webdriver;
-                    } catch(e) {}
-
-                    // Method 2: Override webdriver property if possible
-                    try {
-                        Object.defineProperty(navigator, 'webdriver', {
-                            get: () => undefined,
-                            configurable: true
-                        });
-                    } catch(e) {}
-
-                    // Method 3: Set webdriver to false
-                    try {
-                        navigator.webdriver = false;
-                    } catch(e) {}
-
-                    // Additional stealth measures
-                    Object.defineProperty(navigator, 'languages', {
-                        get: () => ['en-US', 'en'],
-                        configurable: true
-                    });
-
-                    Object.defineProperty(navigator, 'plugins', {
-                        get: () => [1, 2, 3, 4, 5],
-                        configurable: true
-                    });
-
-                    // Add chrome object
-                    window.chrome = {
-                        runtime: {}
-                    };
-                """)
-                print("✅ Anti-detection measures applied")
-            except Exception as stealth_error:
-                print(f"⚠️ Some anti-detection measures failed: {stealth_error}")
-                # Continue anyway - basic functionality should still work
-
-            self.wait = WebDriverWait(self.driver, 15)  # Increased timeout
-
-            print("✅ Browser setup completed successfully")
-
-        except Exception as e:
-            print(f"❌ Primary browser setup failed: {e}")
-            print("🔄 Trying fallback browser setup...")
-
-            # Fallback: Minimal Chrome setup without anti-detection
-            try:
                 self.chrome_options = Options()
-                self.chrome_options.add_argument("--headless=new")
-                self.chrome_options.add_argument("--no-sandbox")
-                self.chrome_options.add_argument("--disable-dev-shm-usage")
-                self.chrome_options.add_argument("--disable-gpu")
-                self.chrome_options.add_argument("--single-process")
-                self.chrome_options.add_argument("--window-size=1920,1080")
+                for option in config['options']:
+                    self.chrome_options.add_argument(option)
 
-                # Simple driver creation without anti-detection
+                # Test Chrome creation
+                print(f"   Creating Chrome driver...")
                 self.driver = webdriver.Chrome(options=self.chrome_options)
+
+                # Test basic functionality
+                print(f"   Testing basic functionality...")
+                self.driver.get("data:text/html,<html><body><h1>Test</h1></body></html>")
+
+                # Test if we can get the title
+                title = self.driver.title
+                print(f"   ✅ {config['name']} successful! Page title: '{title}'")
+
                 self.wait = WebDriverWait(self.driver, 15)
+                print(f"✅ Browser setup completed with {config['name']} configuration")
+                return  # Success!
 
-                print("✅ Fallback browser setup successful")
+            except Exception as config_error:
+                print(f"   ❌ {config['name']} failed: {config_error}")
+                try:
+                    if hasattr(self, 'driver'):
+                        self.driver.quit()
+                except:
+                    pass
+                continue
 
-            except Exception as fallback_error:
-                print(f"❌ Fallback browser setup also failed: {fallback_error}")
-                raise Exception(f"All browser setup methods failed. Primary: {e}, Fallback: {fallback_error}")
+        # If all configs failed, raise error
+        raise Exception("All Chrome configurations failed on Railway")
+
+
+
 
     def search_google_maps(self):
         """Search Google Maps for the given query with multiple fallback methods"""
