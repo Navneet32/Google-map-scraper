@@ -107,14 +107,76 @@ class GoogleMapsBusinessScraper:
                     print(f"   ChromeDriverManager error: {e2}")
                     raise Exception(f"Failed to initialize Chrome: {e2}")
 
-            self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-            self.wait = WebDriverWait(self.driver, 10)
+            # Apply anti-detection measures with error handling
+            try:
+                # Try multiple anti-detection approaches
+                self.driver.execute_script("""
+                    // Method 1: Try to delete webdriver property
+                    try {
+                        delete navigator.__proto__.webdriver;
+                    } catch(e) {}
+
+                    // Method 2: Override webdriver property if possible
+                    try {
+                        Object.defineProperty(navigator, 'webdriver', {
+                            get: () => undefined,
+                            configurable: true
+                        });
+                    } catch(e) {}
+
+                    // Method 3: Set webdriver to false
+                    try {
+                        navigator.webdriver = false;
+                    } catch(e) {}
+
+                    // Additional stealth measures
+                    Object.defineProperty(navigator, 'languages', {
+                        get: () => ['en-US', 'en'],
+                        configurable: true
+                    });
+
+                    Object.defineProperty(navigator, 'plugins', {
+                        get: () => [1, 2, 3, 4, 5],
+                        configurable: true
+                    });
+
+                    // Add chrome object
+                    window.chrome = {
+                        runtime: {}
+                    };
+                """)
+                print("✅ Anti-detection measures applied")
+            except Exception as stealth_error:
+                print(f"⚠️ Some anti-detection measures failed: {stealth_error}")
+                # Continue anyway - basic functionality should still work
+
+            self.wait = WebDriverWait(self.driver, 15)  # Increased timeout
 
             print("✅ Browser setup completed successfully")
 
         except Exception as e:
-            print(f"❌ Browser setup failed: {e}")
-            raise
+            print(f"❌ Primary browser setup failed: {e}")
+            print("🔄 Trying fallback browser setup...")
+
+            # Fallback: Minimal Chrome setup without anti-detection
+            try:
+                self.chrome_options = Options()
+                self.chrome_options.add_argument("--headless=new")
+                self.chrome_options.add_argument("--no-sandbox")
+                self.chrome_options.add_argument("--disable-dev-shm-usage")
+                self.chrome_options.add_argument("--disable-gpu")
+                self.chrome_options.add_argument("--single-process")
+                self.chrome_options.add_argument("--window-size=1920,1080")
+
+                # Simple driver creation without anti-detection
+                self.driver = webdriver.Chrome(options=self.chrome_options)
+                self.wait = WebDriverWait(self.driver, 15)
+
+                print("✅ Fallback browser setup successful")
+
+            except Exception as fallback_error:
+                print(f"❌ Fallback browser setup also failed: {fallback_error}")
+                raise Exception(f"All browser setup methods failed. Primary: {e}, Fallback: {fallback_error}")
 
     def search_google_maps(self):
         """Search Google Maps for the given query"""
