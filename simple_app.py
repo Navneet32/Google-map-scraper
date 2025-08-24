@@ -54,7 +54,7 @@ async def root():
         "version": "1.0.0",
         "status": "active",
         "port": os.environ.get('PORT', 'NOT SET'),
-        "endpoints": ["/", "/health", "/test-dependencies", "/test-chrome", "/test-google-maps", "/test-import", "/scrape"]
+        "endpoints": ["/", "/health", "/test-dependencies", "/test-chrome", "/test-google-maps", "/test-import", "/debug-scrape", "/scrape"]
     }
 
 @app.get("/health")
@@ -143,6 +143,90 @@ async def test_import():
             "status": "error",
             "message": f"General error: {str(e)}",
             "error_type": type(e).__name__,
+            "timestamp": datetime.now().isoformat()
+        }
+
+@app.get("/debug-scrape")
+async def debug_scrape():
+    """Debug the scraping process step by step"""
+    try:
+        print("🔍 Starting debug scrape...")
+
+        # Import the scraper
+        from google_maps_scraper import GoogleMapsBusinessScraper
+
+        # Create scraper instance
+        scraper = GoogleMapsBusinessScraper("coffee shops in San Francisco", max_results=1, visit_websites=False)
+
+        debug_info = {
+            "step_1_import": "✅ Successfully imported scraper",
+            "step_2_instance": "✅ Successfully created scraper instance",
+            "step_3_browser_setup": "❌ Not attempted",
+            "step_4_search": "❌ Not attempted",
+            "step_5_links": "❌ Not attempted",
+            "step_6_extraction": "❌ Not attempted",
+            "errors": [],
+            "timestamp": datetime.now().isoformat()
+        }
+
+        # Test browser setup
+        try:
+            scraper.setup_browser()
+            debug_info["step_3_browser_setup"] = "✅ Browser setup successful"
+
+            # Test search
+            try:
+                search_result = scraper.search_google_maps()
+                if search_result:
+                    debug_info["step_4_search"] = "✅ Google Maps search successful"
+
+                    # Test link extraction
+                    try:
+                        links = scraper.get_business_links()
+                        debug_info["step_5_links"] = f"✅ Found {len(links)} business links"
+
+                        if links:
+                            # Test data extraction from first link
+                            try:
+                                data = scraper.extract_business_data(links[0])
+                                if data and data.get('name') != 'Unknown Business':
+                                    debug_info["step_6_extraction"] = f"✅ Successfully extracted: {data['name']}"
+                                else:
+                                    debug_info["step_6_extraction"] = "❌ Data extraction failed or returned empty"
+                            except Exception as e:
+                                debug_info["step_6_extraction"] = f"❌ Data extraction error: {str(e)}"
+                                debug_info["errors"].append(f"Data extraction: {str(e)}")
+                        else:
+                            debug_info["step_5_links"] = "❌ No business links found"
+
+                    except Exception as e:
+                        debug_info["step_5_links"] = f"❌ Link extraction error: {str(e)}"
+                        debug_info["errors"].append(f"Link extraction: {str(e)}")
+
+                else:
+                    debug_info["step_4_search"] = "❌ Google Maps search failed"
+
+            except Exception as e:
+                debug_info["step_4_search"] = f"❌ Search error: {str(e)}"
+                debug_info["errors"].append(f"Search: {str(e)}")
+
+        except Exception as e:
+            debug_info["step_3_browser_setup"] = f"❌ Browser setup error: {str(e)}"
+            debug_info["errors"].append(f"Browser setup: {str(e)}")
+
+        finally:
+            # Cleanup
+            try:
+                scraper.cleanup()
+            except:
+                pass
+
+        return debug_info
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Debug error: {str(e)}",
             "timestamp": datetime.now().isoformat()
         }
 
