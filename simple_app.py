@@ -211,14 +211,16 @@ async def test_chrome():
         }
 
 if __name__ == "__main__":
-    port_env = os.environ.get("PORT", "8000")
-    print(f"🔍 PORT environment variable: '{port_env}'")
+    # Get port from environment, default to 8000
+    port = int(os.environ.get("PORT", 8000))
 
-    try:
-        port = int(port_env)
-        print(f"🌐 Starting server on port {port}")
-        uvicorn.run(app, host="0.0.0.0", port=port)
-    except ValueError as e:
-        print(f"❌ Invalid port value: '{port_env}' - {str(e)}")
-        print("🔄 Using default port 8000")
-        uvicorn.run(app, host="0.0.0.0", port=8000)
+    print(f"🔍 Environment PORT: {os.environ.get('PORT', 'NOT SET')}")
+    print(f"🌐 Starting server on 0.0.0.0:{port}")
+
+    # Start the server
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=port,
+        log_level="info"
+    )
