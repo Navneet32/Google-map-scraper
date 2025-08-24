@@ -65,42 +65,65 @@ async def test_chrome():
     """Test if Chrome browser can be initialized"""
     try:
         print("🧪 Testing Chrome browser initialization...")
-        
+
         # Import here to avoid startup issues
         from selenium import webdriver
         from selenium.webdriver.chrome.options import Options
-        from selenium.webdriver.chrome.service import Service
-        from webdriver_manager.chrome import ChromeDriverManager
-        
-        # Test Chrome setup
+
+        # Enhanced Chrome options for Railway deployment
         chrome_options = Options()
         chrome_options.add_argument("--headless=new")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--disable-web-security")
+        chrome_options.add_argument("--disable-features=VizDisplayCompositor")
+        chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_argument("--disable-plugins")
         chrome_options.add_argument("--single-process")
-        chrome_options.add_argument("--remote-debugging-port=9222")
-        
-        # Try system Chrome first
+        chrome_options.add_argument("--no-zygote")
+        chrome_options.add_argument("--window-size=1920,1080")
+
+        # Fix user data directory issue
+        import tempfile
+        import uuid
+        temp_dir = tempfile.mkdtemp()
+        unique_user_data_dir = f"{temp_dir}/chrome_user_data_{uuid.uuid4().hex[:8]}"
+        chrome_options.add_argument(f"--user-data-dir={unique_user_data_dir}")
+
         try:
+            # Use system Chrome only
             driver = webdriver.Chrome(options=chrome_options)
-            method = "system"
-        except:
-            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-            method = "chromedriver-manager"
-        
-        driver.get("https://www.google.com")
-        title = driver.title
-        driver.quit()
-        
-        return {
-            "status": "success",
-            "message": "Chrome browser working correctly",
-            "method": method,
-            "test_page_title": title,
-            "timestamp": datetime.now().isoformat()
-        }
-        
+
+            # Simple test page
+            driver.get("data:text/html,<html><head><title>Test Page</title></head><body>Test</body></html>")
+            title = driver.title
+            driver.quit()
+
+            # Clean up temp directory
+            import shutil
+            try:
+                shutil.rmtree(temp_dir)
+            except:
+                pass
+
+            return {
+                "status": "success",
+                "message": "Chrome browser working correctly",
+                "method": "system-chrome",
+                "test_page_title": title,
+                "timestamp": datetime.now().isoformat()
+            }
+
+        except Exception as e:
+            # Clean up temp directory on error
+            import shutil
+            try:
+                shutil.rmtree(temp_dir)
+            except:
+                pass
+            raise e
+
     except Exception as e:
         return {
             "status": "error",
