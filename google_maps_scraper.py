@@ -120,91 +120,189 @@ class GoogleMapsBusinessScraper:
         """Search Google Maps for the given query"""
         try:
             print(f"🔍 Searching Google Maps for: {self.search_query}")
-            
-            # Navigate to Google Maps
-            self.driver.get("https://www.google.com/maps")
-            time.sleep(2)
-            
-            # Find and fill search box
-            search_box = self.wait.until(EC.presence_of_element_located((By.ID, "searchboxinput")))
-            search_box.clear()
-            search_box.send_keys(self.search_query)
-            
-            # Click search button
-            search_button = self.driver.find_element(By.ID, "searchbox-searchbutton")
-            search_button.click()
-            
+
+            # Use direct search URL (more reliable)
+            search_url = f"https://www.google.com/maps/search/{self.search_query.replace(' ', '+')}"
+            print(f"🌐 Navigating to: {search_url}")
+
+            self.driver.get(search_url)
+            time.sleep(5)  # Give more time for loading
+
+            # Handle cookie consent if it appears
+            try:
+                cookie_buttons = [
+                    "//button[contains(text(), 'Accept all')]",
+                    "//button[contains(text(), 'I agree')]",
+                    "//button[contains(text(), 'Accept')]",
+                    "//div[contains(text(), 'Accept all')]//parent::button"
+                ]
+
+                for button_xpath in cookie_buttons:
+                    try:
+                        accept_button = WebDriverWait(self.driver, 3).until(
+                            EC.element_to_be_clickable((By.XPATH, button_xpath))
+                        )
+                        accept_button.click()
+                        print("✅ Accepted cookies")
+                        time.sleep(2)
+                        break
+                    except:
+                        continue
+
+            except Exception as e:
+                print(f"ℹ️ No cookie consent found or already handled: {e}")
+
             # Wait for results to load
             time.sleep(3)
+
+            # Check if we have results by looking for business listings
+            try:
+                # Look for any business result indicators
+                result_indicators = [
+                    "//div[contains(@class, 'Nv2PK')]",  # Business listing container
+                    "//div[@role='article']",  # Article role elements
+                    "//a[contains(@href, '/maps/place/')]",  # Direct place links
+                    "//div[contains(@class, 'bfdHYd')]"  # Another common container
+                ]
+
+                found_results = False
+                for indicator in result_indicators:
+                    try:
+                        elements = self.driver.find_elements(By.XPATH, indicator)
+                        if elements:
+                            print(f"✅ Found {len(elements)} potential results with selector: {indicator}")
+                            found_results = True
+                            break
+                    except:
+                        continue
+
+                if not found_results:
+                    print("⚠️ No obvious results found, but continuing...")
+
+            except Exception as e:
+                print(f"⚠️ Error checking for results: {e}")
+
             print("✅ Search completed successfully")
             return True
-            
+
         except Exception as e:
             print(f"❌ Search failed: {e}")
             return False
 
     def get_business_links(self):
-        """Extract business links from Google Maps results"""
+        """Extract business links from Google Maps results with improved selectors"""
         try:
             print("📋 Extracting business links...")
             all_links = set()
             scroll_attempts = 0
-            max_scrolls = 10
+            max_scrolls = 8
             no_new_content_count = 0
-            
+
+            # Multiple strategies to find business links
+            link_selectors = [
+                '//a[contains(@href, "/maps/place/")]',
+                '//div[@role="article"]//a[contains(@href, "/maps/place/")]',
+                '//div[contains(@class, "Nv2PK")]//a[contains(@href, "/maps/place/")]',
+                '//div[contains(@class, "bfdHYd")]//a[contains(@href, "/maps/place/")]'
+            ]
+
             while scroll_attempts < max_scrolls and len(all_links) < self.max_results:
-                # Get current links
-                page_source = self.driver.page_source
-                tree = html.fromstring(page_source)
-                current_links = tree.xpath('//a[contains(@href, "/maps/place/")]/@href')
-                
-                # Clean and add new links
+                print(f"🔄 Scroll attempt {scroll_attempts + 1}/{max_scrolls}")
+
+                # Try multiple selectors to find links
                 new_links_count = 0
-                for link in current_links:
-                    if link.startswith('/'):
-                        link = 'https://www.google.com' + link
-                    if link not in all_links:
-                        all_links.add(link)
-                        new_links_count += 1
-                
-                print(f"Scroll {scroll_attempts + 1}: Found {len(all_links)} total links (+{new_links_count} new)")
-                
+                for selector in link_selectors:
+                    try:
+                        link_elements = self.driver.find_elements(By.XPATH, selector)
+                        for element in link_elements:
+                            try:
+                                href = element.get_attribute('href')
+                                if href and '/maps/place/' in href:
+                                    if href not in all_links:
+                                        all_links.add(href)
+                                        new_links_count += 1
+                            except:
+                                continue
+                    except Exception as e:
+                        print(f"⚠️ Selector {selector} failed: {e}")
+                        continue
+
+                print(f"📊 Found {len(all_links)} total links (+{new_links_count} new)")
+
+                # If we have enough links, break early
+                if len(all_links) >= self.max_results:
+                    print(f"🎯 Reached target of {self.max_results} links")
+                    break
+
                 # Check if we found new content
                 if new_links_count == 0:
                     no_new_content_count += 1
                     if no_new_content_count >= 3:
-                        print("No new content found after 3 attempts")
+                        print("⏹️ No new content found after 3 attempts, stopping")
                         break
                 else:
                     no_new_content_count = 0
-                
-                # Scroll down to load more results
+
+                # Scroll down to load more results - try multiple scroll methods
                 try:
-                    results_panel = self.driver.find_element(By.CSS_SELECTOR, '[role="main"]')
-                    self.driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", results_panel)
+                    # Method 1: Find and scroll the results panel
+                    scrollable_selectors = [
+                        '[role="main"]',
+                        '.m6QErb',
+                        '#pane',
+                        '.siAUzd'
+                    ]
+
+                    scrolled = False
+                    for selector in scrollable_selectors:
+                        try:
+                            results_panel = self.driver.find_element(By.CSS_SELECTOR, selector)
+                            self.driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", results_panel)
+                            scrolled = True
+                            print(f"✅ Scrolled using selector: {selector}")
+                            break
+                        except:
+                            continue
+
+                    if not scrolled:
+                        # Fallback: scroll the entire page
+                        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                        print("✅ Used fallback page scroll")
+
+                    time.sleep(random.uniform(2, 4))  # Random delay to avoid detection
+
+                except Exception as e:
+                    print(f"⚠️ Scroll error: {e}")
                     time.sleep(2)
-                except:
-                    # Fallback scroll method
-                    self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                    time.sleep(2)
-                
+
                 scroll_attempts += 1
-            
+
             business_links = list(all_links)[:self.max_results]
-            print(f"✅ Found {len(business_links)} business links")
+            print(f"✅ Final result: {len(business_links)} business links extracted")
+
+            # Debug: print first few links
+            if business_links:
+                print("🔗 Sample links:")
+                for i, link in enumerate(business_links[:3]):
+                    print(f"  {i+1}. {link[:80]}...")
+            else:
+                print("❌ No business links found!")
+
             return business_links
-            
+
         except Exception as e:
             print(f"❌ Link extraction failed: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
     def extract_business_data(self, business_url):
-        """Extract data from a single business page"""
+        """Extract data from a single business page with improved selectors"""
         try:
-            print(f"📊 Extracting data from: {business_url}")
+            print(f"📊 Extracting data from: {business_url[:60]}...")
             self.driver.get(business_url)
-            time.sleep(3)
-            
+            time.sleep(random.uniform(3, 5))  # Random delay
+
             data = {
                 'name': '',
                 'address': '',
@@ -220,127 +318,286 @@ class GoogleMapsBusinessScraper:
                 'website_visited': False,
                 'additional_contacts': ''
             }
-            
-            # Extract business name
-            try:
-                name_element = self.driver.find_element(By.CSS_SELECTOR, 'h1[data-attrid="title"]')
-                data['name'] = name_element.text.strip()
-            except:
+
+            # Extract business name with multiple selectors
+            name_selectors = [
+                'h1[data-attrid="title"]',
+                'h1.DUwDvf',
+                'h1.x3AX1-LfntMc-header-title-title',
+                'h1',
+                '.x3AX1-LfntMc-header-title-title',
+                '.DUwDvf'
+            ]
+
+            for selector in name_selectors:
                 try:
-                    name_element = self.driver.find_element(By.CSS_SELECTOR, 'h1')
-                    data['name'] = name_element.text.strip()
-                except:
-                    data['name'] = 'Unknown Business'
-            
-            # Extract address
-            try:
-                address_element = self.driver.find_element(By.CSS_SELECTOR, '[data-item-id="address"]')
-                data['address'] = address_element.text.strip()
-            except:
-                data['address'] = 'Address not found'
-            
-            # Extract rating and review count
-            try:
-                rating_element = self.driver.find_element(By.CSS_SELECTOR, '[jsaction*="pane.rating"]')
-                rating_text = rating_element.text
-                rating_match = re.search(r'(\d+\.?\d*)', rating_text)
-                if rating_match:
-                    data['rating'] = float(rating_match.group(1))
-                
-                review_match = re.search(r'\((\d+(?:,\d+)*)\)', rating_text)
-                if review_match:
-                    data['review_count'] = int(review_match.group(1).replace(',', ''))
-            except:
-                pass
-            
-            # Extract category
-            try:
-                category_element = self.driver.find_element(By.CSS_SELECTOR, '[jsaction*="pane.rating.category"]')
-                data['category'] = category_element.text.strip()
-            except:
-                data['category'] = 'Category not found'
-            
-            # Extract website
-            try:
-                website_element = self.driver.find_element(By.CSS_SELECTOR, '[data-item-id="authority"]')
-                data['website'] = website_element.get_attribute('href')
-            except:
-                pass
-            
-            # Extract phone number
-            try:
-                phone_element = self.driver.find_element(By.CSS_SELECTOR, '[data-item-id*="phone"]')
-                phone_text = phone_element.text.strip()
-                for pattern in self.phone_patterns:
-                    match = pattern.search(phone_text)
-                    if match:
-                        data['mobile'] = match.group(0)
+                    name_element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    name_text = name_element.text.strip()
+                    if name_text and len(name_text) > 1:
+                        data['name'] = name_text
                         break
-            except:
-                pass
-            
+                except:
+                    continue
+
+            if not data['name']:
+                data['name'] = 'Unknown Business'
+
+            # Extract address with multiple selectors
+            address_selectors = [
+                '[data-item-id="address"]',
+                '.Io6YTe.fontBodyMedium.kR99db.fdkmkc',
+                '.rogA2c .Io6YTe',
+                'button[data-item-id="address"]',
+                '.fccl3c .Io6YTe'
+            ]
+
+            for selector in address_selectors:
+                try:
+                    address_element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    address_text = address_element.text.strip()
+                    if address_text and len(address_text) > 5:
+                        data['address'] = address_text
+                        break
+                except:
+                    continue
+
+            if not data['address']:
+                data['address'] = 'Address not found'
+
+            # Extract rating and review count with multiple approaches
+            rating_selectors = [
+                '.F7nice span[aria-hidden="true"]',
+                '.ceNzKf[aria-label*="stars"]',
+                'span.ceNzKf',
+                '.MW4etd'
+            ]
+
+            for selector in rating_selectors:
+                try:
+                    rating_element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    rating_text = rating_element.text.strip()
+
+                    # Try to extract rating number
+                    rating_match = re.search(r'(\d+\.?\d*)', rating_text)
+                    if rating_match:
+                        data['rating'] = float(rating_match.group(1))
+                        break
+                except:
+                    continue
+
+            # Extract review count
+            review_selectors = [
+                '.F7nice span:nth-child(2)',
+                'button[aria-label*="reviews"]',
+                '.UY7F9'
+            ]
+
+            for selector in review_selectors:
+                try:
+                    review_element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    review_text = review_element.text.strip()
+
+                    # Extract number from text like "(1,234)" or "1,234 reviews"
+                    review_match = re.search(r'[\(]?(\d+(?:,\d+)*)[\)]?', review_text)
+                    if review_match:
+                        data['review_count'] = int(review_match.group(1).replace(',', ''))
+                        break
+                except:
+                    continue
+
+            # Extract category
+            category_selectors = [
+                '.DkEaL',
+                'button[jsaction*="category"]',
+                '.YhemCb'
+            ]
+
+            for selector in category_selectors:
+                try:
+                    category_element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    category_text = category_element.text.strip()
+                    if category_text and len(category_text) > 2:
+                        data['category'] = category_text
+                        break
+                except:
+                    continue
+
+            if not data['category']:
+                data['category'] = 'Category not found'
+
+            # Extract website
+            website_selectors = [
+                'a[data-item-id="authority"]',
+                'a[href*="http"]:not([href*="google.com"]):not([href*="maps"])',
+                '.CsEnBe a[href*="http"]'
+            ]
+
+            for selector in website_selectors:
+                try:
+                    website_element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    website_url = website_element.get_attribute('href')
+                    if website_url and 'google.com' not in website_url and 'maps' not in website_url:
+                        data['website'] = website_url
+                        break
+                except:
+                    continue
+
+            # Extract phone number
+            phone_selectors = [
+                'button[data-item-id*="phone"]',
+                '.rogA2c button[aria-label*="phone"]',
+                'button[aria-label*="Call"]',
+                '.Io6YTe.fontBodyMedium.kR99db.fdkmkc[aria-label*="phone"]'
+            ]
+
+            for selector in phone_selectors:
+                try:
+                    phone_element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    phone_text = phone_element.get_attribute('aria-label') or phone_element.text
+
+                    # Try to extract phone number using patterns
+                    for pattern in self.phone_patterns:
+                        match = pattern.search(phone_text)
+                        if match:
+                            data['mobile'] = match.group(0)
+                            break
+
+                    if data['mobile']:
+                        break
+
+                except:
+                    continue
+
             self.extracted_count += 1
-            print(f"✅ Extracted data for: {data['name']}")
+
+            # Create a summary for logging
+            summary = f"✅ {data['name']}"
+            if data['rating']:
+                summary += f" ({data['rating']}⭐)"
+            if data['mobile']:
+                summary += f" 📞"
+            if data['website']:
+                summary += f" 🌐"
+
+            print(summary)
             return data
-            
+
         except Exception as e:
             print(f"❌ Data extraction failed: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     def run_extraction(self):
-        """Main extraction process"""
+        """Main extraction process with improved error handling and debugging"""
         start_time = datetime.now()
         results = []
-        
+
         try:
             print(f"🚀 STARTING GOOGLE MAPS EXTRACTION")
-            print(f"🔍 Search Query: {self.search_query}")
+            print(f"🔍 Search Query: '{self.search_query}'")
             print(f"🎯 Target: {self.max_results} businesses")
             print(f"🌐 Website visits: {'Enabled' if self.visit_websites else 'Disabled'}")
             print(f"⏰ Started at: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-            print("=" * 60)
-            
+            print("=" * 70)
+
             # Step 1: Search Google Maps
+            print("\n🔍 STEP 1: Searching Google Maps...")
             if not self.search_google_maps():
                 print("❌ Failed to search Google Maps")
                 return []
-            
+            print("✅ Google Maps search completed")
+
             # Step 2: Extract business links
+            print("\n📋 STEP 2: Extracting business links...")
             business_links = self.get_business_links()
             if not business_links:
                 print("❌ No business links found")
+                print("🔍 Debug: Checking page source for clues...")
+
+                # Debug information
+                try:
+                    page_title = self.driver.title
+                    current_url = self.driver.current_url
+                    print(f"📄 Page title: {page_title}")
+                    print(f"🌐 Current URL: {current_url}")
+
+                    # Check if we're blocked or redirected
+                    if "sorry" in page_title.lower() or "blocked" in page_title.lower():
+                        print("🚫 Appears to be blocked by Google")
+                    elif "maps" not in current_url:
+                        print("🔄 Redirected away from Google Maps")
+                    else:
+                        print("🤔 On Google Maps but no results found")
+
+                except Exception as debug_e:
+                    print(f"⚠️ Debug info error: {debug_e}")
+
                 return []
-            
+
+            print(f"✅ Found {len(business_links)} business links")
+
             # Step 3: Extract data from each business
-            print(f"\n📊 EXTRACTING DATA FROM {len(business_links)} BUSINESSES")
-            print("=" * 60)
-            
+            print(f"\n📊 STEP 3: Extracting data from businesses...")
+            print("=" * 70)
+
+            successful_extractions = 0
+            failed_extractions = 0
+
             for i, link in enumerate(business_links, 1):
-                print(f"\n[{i}/{len(business_links)}] Processing business...")
-                
-                business_data = self.extract_business_data(link)
-                if business_data:
-                    results.append(business_data)
-                    if business_data.get('email') or business_data.get('mobile'):
-                        self.contacts_found += 1
-                
-                # Add delay between requests
-                time.sleep(random.uniform(1, 3))
-            
+                print(f"\n[{i:2d}/{len(business_links)}] Processing business {i}...")
+
+                try:
+                    business_data = self.extract_business_data(link)
+                    if business_data and business_data.get('name') != 'Unknown Business':
+                        results.append(business_data)
+                        successful_extractions += 1
+
+                        # Count contacts
+                        if business_data.get('email') or business_data.get('mobile'):
+                            self.contacts_found += 1
+                    else:
+                        failed_extractions += 1
+                        print(f"⚠️ Failed to extract meaningful data from business {i}")
+
+                except Exception as extract_e:
+                    failed_extractions += 1
+                    print(f"❌ Error extracting business {i}: {extract_e}")
+
+                # Progress update every 5 businesses
+                if i % 5 == 0:
+                    elapsed = datetime.now() - start_time
+                    rate = i / elapsed.total_seconds() * 60 if elapsed.total_seconds() > 0 else 0
+                    print(f"📈 Progress: {successful_extractions} successful, {failed_extractions} failed, {rate:.1f} businesses/min")
+
+                # Add delay between requests to avoid being blocked
+                delay = random.uniform(2, 4)
+                time.sleep(delay)
+
             # Final summary
             end_time = datetime.now()
             duration = end_time - start_time
-            
-            print(f"\n🎉 EXTRACTION COMPLETED!")
+
+            print(f"\n" + "=" * 70)
+            print(f"🎉 EXTRACTION COMPLETED!")
             print(f"⏱️ Duration: {duration}")
-            print(f"📊 Businesses processed: {self.extracted_count}")
-            print(f"📞 Total contacts found: {self.contacts_found}")
-            print(f"✅ Results: {len(results)} businesses")
-            
+            print(f"📊 Businesses processed: {len(business_links)}")
+            print(f"✅ Successful extractions: {successful_extractions}")
+            print(f"❌ Failed extractions: {failed_extractions}")
+            print(f"📞 Contacts found: {self.contacts_found}")
+            print(f"📋 Final results: {len(results)} businesses")
+
+            if results:
+                print(f"\n📝 Sample results:")
+                for i, result in enumerate(results[:3], 1):
+                    print(f"  {i}. {result['name']} - {result['address'][:50]}...")
+
             return results
-            
+
         except Exception as e:
-            print(f"❌ Extraction error: {e}")
+            print(f"❌ Critical extraction error: {e}")
+            import traceback
+            traceback.print_exc()
             return []
         finally:
             self.cleanup()
