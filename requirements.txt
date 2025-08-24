@@ -1,5 +1,15 @@
+# Core FastAPI dependencies
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-requests==2.31.0
 pydantic==2.5.0
-python-multipart==0.0.6
+
+# Selenium and web scraping dependencies
+selenium==4.15.2
+webdriver-manager==4.0.1
+lxml==4.9.3
+requests==2.31.0
+
+# Additional dependencies for stability
+certifi==2023.11.17
+urllib3==2.1.0
+packaging==23.2
