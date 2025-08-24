@@ -1,3 +1,4 @@
+/usr/bin/google-chrome
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
