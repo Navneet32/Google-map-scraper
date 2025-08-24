@@ -52,5 +52,8 @@ COPY . .
 # Expose port
 EXPOSE 8000
 
-# Command to run the application
-CMD ["python", "simple_app.py"]
+# Set environment variables for Railway
+ENV PORT=8000
+
+# Command to run the application - use exec form to avoid shell interpretation
+CMD ["python3", "-u", "test_simple.py"]
