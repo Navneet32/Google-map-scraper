@@ -1,12 +1,26 @@
 [phases.setup]
-nixPkgs = ['python311', 'pip', 'chromium', 'chromedriver']
+nixPkgs = [
+  "python311",
+  "python311Packages.pip",
+  "chromium",
+  "chromedriver"
+]
 
 [phases.install]
-cmd = 'pip install -r requirements.txt'
+cmds = [
+  "pip install --upgrade pip",
+  "pip install -r requirements.txt"
+]
 
-[variables]
-CHROME_BIN = '/nix/store/*/bin/chromium'
-CHROMEDRIVER_PATH = '/nix/store/*/bin/chromedriver'
+[phases.build]
+cmds = [
+  "echo 'Build phase completed'"
+]
 
 [start]
-cmd = 'python simple_app.py'
+cmd = "python simple_app.py"
+
+[variables]
+PYTHONPATH = "/app"
+CHROME_BIN = "/nix/store/*/bin/chromium"
+CHROMEDRIVER_PATH = "/nix/store/*/bin/chromedriver"
