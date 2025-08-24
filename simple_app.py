@@ -54,7 +54,7 @@ async def root():
         "version": "1.0.0",
         "status": "active",
         "port": os.environ.get('PORT', 'NOT SET'),
-        "endpoints": ["/", "/health", "/test-dependencies", "/test-chrome", "/test-google-maps", "/scrape"]
+        "endpoints": ["/", "/health", "/test-dependencies", "/test-chrome", "/test-google-maps", "/test-import", "/scrape"]
     }
 
 @app.get("/health")
@@ -111,6 +111,40 @@ async def test_dependencies():
             "timestamp": datetime.now().isoformat()
         }
 
+
+@app.get("/test-import")
+async def test_import():
+    """Test if we can import the new scraper"""
+    try:
+        print("🧪 Testing import of google_maps_scraper...")
+
+        # Try to import the new scraper
+        from google_maps_scraper import GoogleMapsBusinessScraper
+
+        # Try to create an instance
+        scraper = GoogleMapsBusinessScraper("test query", max_results=1, visit_websites=False)
+
+        return {
+            "status": "success",
+            "message": "Successfully imported and instantiated GoogleMapsBusinessScraper",
+            "scraper_class": str(type(scraper)),
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except ImportError as e:
+        return {
+            "status": "error",
+            "message": f"Import error: {str(e)}",
+            "error_type": "ImportError",
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"General error: {str(e)}",
+            "error_type": type(e).__name__,
+            "timestamp": datetime.now().isoformat()
+        }
 
 @app.get("/test-chrome")
 async def test_chrome():
