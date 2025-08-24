@@ -41,7 +41,7 @@ async def test_chrome():
     """Test if Chrome browser can be initialized"""
     try:
         print("🧪 Testing Chrome browser initialization...")
-        
+
         # Try to import selenium
         try:
             from selenium import webdriver
@@ -53,52 +53,83 @@ async def test_chrome():
                 "message": f"Selenium import failed: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }
-        
-        # Try to setup Chrome options
+
+        # Enhanced Chrome options for Railway deployment
         chrome_options = Options()
         chrome_options.add_argument("--headless=new")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--disable-web-security")
+        chrome_options.add_argument("--disable-features=VizDisplayCompositor")
+        chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_argument("--disable-plugins")
+        chrome_options.add_argument("--disable-images")
+        chrome_options.add_argument("--disable-javascript")
         chrome_options.add_argument("--single-process")
-        chrome_options.add_argument("--remote-debugging-port=9222")
-        print("✅ Chrome options configured")
-        
-        # Try to create driver
+        chrome_options.add_argument("--no-zygote")
+        chrome_options.add_argument("--disable-background-timer-throttling")
+        chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+        chrome_options.add_argument("--disable-renderer-backgrounding")
+        chrome_options.add_argument("--window-size=1920,1080")
+
+        # Fix user data directory issue
+        import tempfile
+        import uuid
+        temp_dir = tempfile.mkdtemp()
+        unique_user_data_dir = f"{temp_dir}/chrome_user_data_{uuid.uuid4().hex[:8]}"
+        chrome_options.add_argument(f"--user-data-dir={unique_user_data_dir}")
+
+        print("✅ Chrome options configured with unique user data directory")
+
+        # Try to create driver with system Chrome only (avoid WebDriver Manager issues)
         try:
-            # Test system Chrome first
+            # Use system Chrome directly
             driver = webdriver.Chrome(options=chrome_options)
-            driver.get("https://www.google.com")
+            print("✅ Chrome driver created successfully")
+
+            # Simple test - just get the title without navigation
+            driver.get("data:text/html,<html><head><title>Test Page</title></head><body>Test</body></html>")
             title = driver.title
+            print(f"✅ Test page loaded: {title}")
+
             driver.quit()
-            method = "system-chrome"
-        except Exception as e1:
+            print("✅ Chrome driver closed successfully")
+
+            # Clean up temp directory
+            import shutil
             try:
-                # Try with ChromeDriverManager
-                from selenium.webdriver.chrome.service import Service
-                from webdriver_manager.chrome import ChromeDriverManager
-                service = Service(ChromeDriverManager().install())
-                driver = webdriver.Chrome(service=service, options=chrome_options)
-                driver.get("https://www.google.com")
-                title = driver.title
-                driver.quit()
-                method = "chromedriver-manager"
-            except Exception as e2:
-                return {
-                    "status": "error",
-                    "message": f"Chrome failed. System: {str(e1)}, Manager: {str(e2)}",
-                    "timestamp": datetime.now().isoformat()
-                }
-        
-        return {
-            "status": "success",
-            "message": "Chrome browser working correctly",
-            "method": method,
-            "test_page_title": title,
-            "timestamp": datetime.now().isoformat()
-        }
-        
+                shutil.rmtree(temp_dir)
+            except:
+                pass
+
+            return {
+                "status": "success",
+                "message": "Chrome browser working correctly on Railway",
+                "method": "system-chrome",
+                "test_page_title": title,
+                "user_data_dir": unique_user_data_dir,
+                "timestamp": datetime.now().isoformat()
+            }
+
+        except Exception as e:
+            print(f"❌ Chrome test failed: {str(e)}")
+
+            # Clean up temp directory on error
+            import shutil
+            try:
+                shutil.rmtree(temp_dir)
+            except:
+                pass
+
+            return {
+                "status": "error",
+                "message": f"Chrome failed: {str(e)}",
+                "timestamp": datetime.now().isoformat()
+            }
+
     except Exception as e:
+        print(f"❌ General error: {str(e)}")
         return {
             "status": "error",
             "message": f"Chrome test failed: {str(e)}",
