@@ -56,4 +56,4 @@ EXPOSE 8000
 ENV PORT=8000
 
 # Command to run the application - use exec form to avoid shell interpretation
-CMD ["python3", "-u", "test_simple.py"]
+CMD ["python3", "-u", "simple_app.py"]
