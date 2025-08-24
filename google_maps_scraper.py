@@ -179,24 +179,94 @@ class GoogleMapsBusinessScraper:
                 raise Exception(f"All browser setup methods failed. Primary: {e}, Fallback: {fallback_error}")
 
     def search_google_maps(self):
-        """Search Google Maps for the given query"""
+        """Search Google Maps for the given query with multiple fallback methods"""
         try:
             print(f"🔍 Searching Google Maps for: {self.search_query}")
 
-            # Use direct search URL (more reliable)
+            # Method 1: Direct search URL (primary method)
             search_url = f"https://www.google.com/maps/search/{self.search_query.replace(' ', '+')}"
-            print(f"🌐 Navigating to: {search_url}")
+            print(f"🌐 Method 1: Navigating to: {search_url}")
 
-            self.driver.get(search_url)
-            time.sleep(5)  # Give more time for loading
+            try:
+                self.driver.get(search_url)
+                time.sleep(8)  # Increased wait time for Railway
 
-            # Handle cookie consent if it appears
+                # Check if we're on Google Maps
+                current_url = self.driver.current_url
+                page_title = self.driver.title
+
+                print(f"📄 Page title: {page_title}")
+                print(f"🌐 Current URL: {current_url[:100]}...")
+
+                # Check for common blocking indicators
+                if "sorry" in page_title.lower() or "blocked" in page_title.lower():
+                    print("🚫 Method 1 blocked by Google, trying Method 2...")
+                    raise Exception("Blocked by Google")
+
+                if "maps" not in current_url.lower():
+                    print("🔄 Method 1 redirected, trying Method 2...")
+                    raise Exception("Redirected away from Maps")
+
+            except Exception as method1_error:
+                print(f"⚠️ Method 1 failed: {method1_error}")
+
+                # Method 2: Go to Google Maps first, then search
+                print("🔄 Method 2: Going to Google Maps homepage first...")
+                try:
+                    self.driver.get("https://www.google.com/maps")
+                    time.sleep(5)
+
+                    # Find and use search box
+                    search_box_selectors = [
+                        "#searchboxinput",
+                        'input[placeholder*="Search"]',
+                        'input[aria-label*="Search"]'
+                    ]
+
+                    search_box = None
+                    for selector in search_box_selectors:
+                        try:
+                            search_box = self.driver.find_element(By.CSS_SELECTOR, selector)
+                            break
+                        except:
+                            continue
+
+                    if search_box:
+                        search_box.clear()
+                        search_box.send_keys(self.search_query)
+
+                        # Find and click search button
+                        search_button_selectors = [
+                            "#searchbox-searchbutton",
+                            'button[aria-label*="Search"]',
+                            'button[data-value="Search"]'
+                        ]
+
+                        for selector in search_button_selectors:
+                            try:
+                                search_button = self.driver.find_element(By.CSS_SELECTOR, selector)
+                                search_button.click()
+                                break
+                            except:
+                                continue
+
+                        time.sleep(5)
+                        print("✅ Method 2: Search submitted successfully")
+                    else:
+                        raise Exception("Could not find search box")
+
+                except Exception as method2_error:
+                    print(f"❌ Method 2 also failed: {method2_error}")
+                    return False
+
+            # Handle cookie consent if it appears (for both methods)
             try:
                 cookie_buttons = [
                     "//button[contains(text(), 'Accept all')]",
                     "//button[contains(text(), 'I agree')]",
                     "//button[contains(text(), 'Accept')]",
-                    "//div[contains(text(), 'Accept all')]//parent::button"
+                    "//div[contains(text(), 'Accept all')]//parent::button",
+                    "//button[@aria-label='Accept all']"
                 ]
 
                 for button_xpath in cookie_buttons:
@@ -206,7 +276,7 @@ class GoogleMapsBusinessScraper:
                         )
                         accept_button.click()
                         print("✅ Accepted cookies")
-                        time.sleep(2)
+                        time.sleep(3)
                         break
                     except:
                         continue
@@ -214,32 +284,42 @@ class GoogleMapsBusinessScraper:
             except Exception as e:
                 print(f"ℹ️ No cookie consent found or already handled: {e}")
 
-            # Wait for results to load
-            time.sleep(3)
+            # Wait for results to load with longer timeout
+            print("⏳ Waiting for search results to load...")
+            time.sleep(5)
 
             # Check if we have results by looking for business listings
             try:
-                # Look for any business result indicators
+                # Look for any business result indicators with more selectors
                 result_indicators = [
                     "//div[contains(@class, 'Nv2PK')]",  # Business listing container
                     "//div[@role='article']",  # Article role elements
                     "//a[contains(@href, '/maps/place/')]",  # Direct place links
-                    "//div[contains(@class, 'bfdHYd')]"  # Another common container
+                    "//div[contains(@class, 'bfdHYd')]",  # Another common container
+                    "//div[contains(@class, 'lI9IFe')]",  # Search result container
+                    "//div[contains(@jsaction, 'mouseover')]"  # Interactive elements
                 ]
 
                 found_results = False
+                total_elements = 0
+
                 for indicator in result_indicators:
                     try:
                         elements = self.driver.find_elements(By.XPATH, indicator)
                         if elements:
                             print(f"✅ Found {len(elements)} potential results with selector: {indicator}")
+                            total_elements += len(elements)
                             found_results = True
                             break
-                    except:
+                    except Exception as indicator_error:
+                        print(f"⚠️ Selector {indicator} failed: {indicator_error}")
                         continue
 
-                if not found_results:
+                if found_results:
+                    print(f"🎯 Total potential results found: {total_elements}")
+                else:
                     print("⚠️ No obvious results found, but continuing...")
+                    # Still return True to attempt link extraction
 
             except Exception as e:
                 print(f"⚠️ Error checking for results: {e}")
@@ -249,6 +329,8 @@ class GoogleMapsBusinessScraper:
 
         except Exception as e:
             print(f"❌ Search failed: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def get_business_links(self):
