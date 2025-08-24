@@ -278,12 +278,12 @@ async def test_google_maps_scraper():
     try:
         print("🗺️ Testing Google Maps scraper...")
 
-        # Import the scraper class
-        from main import AdvancedContactExtractor
+        # Import the clean scraper class
+        from google_maps_scraper import GoogleMapsBusinessScraper
 
-        # Create extractor instance with small test
-        print("🚀 Initializing Google Maps extractor...")
-        extractor = AdvancedContactExtractor(
+        # Create scraper instance with small test
+        print("🚀 Initializing Google Maps scraper...")
+        scraper = GoogleMapsBusinessScraper(
             search_query="coffee shops in San Francisco",
             max_results=3,  # Small test
             visit_websites=False  # Skip website visits for faster test
@@ -291,7 +291,7 @@ async def test_google_maps_scraper():
 
         # Run extraction
         print("⚡ Starting extraction process...")
-        results = extractor.run_extraction()
+        results = scraper.run_extraction()
         print(f"✅ Extraction completed. Results type: {type(results)}")
 
         if results and isinstance(results, list) and len(results) > 0:
@@ -336,12 +336,12 @@ async def scrape_google_maps(request: SearchRequest):
         print(f"🔍 Received scraping request: {request.query}")
         print(f"📊 Max results: {request.max_results}, Visit websites: {request.visit_websites}")
 
-        # Import the scraper class
-        from main import AdvancedContactExtractor
+        # Import the clean scraper class
+        from google_maps_scraper import GoogleMapsBusinessScraper
 
-        # Create extractor instance
-        print("🚀 Initializing Google Maps extractor...")
-        extractor = AdvancedContactExtractor(
+        # Create scraper instance
+        print("🚀 Initializing Google Maps scraper...")
+        scraper = GoogleMapsBusinessScraper(
             search_query=request.query,
             max_results=request.max_results,
             visit_websites=request.visit_websites
@@ -349,7 +349,7 @@ async def scrape_google_maps(request: SearchRequest):
 
         # Run extraction
         print("⚡ Starting extraction process...")
-        results = extractor.run_extraction()
+        results = scraper.run_extraction()
         print(f"✅ Extraction completed. Results type: {type(results)}")
 
         if results and isinstance(results, list) and len(results) > 0:
