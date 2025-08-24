@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Optional
 from datetime import datetime
 import uvicorn
 import os
@@ -18,6 +20,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Pydantic models for API requests and responses
+class SearchRequest(BaseModel):
+    query: str
+    max_results: Optional[int] = 20
+    visit_websites: Optional[bool] = False
+
+class BusinessResult(BaseModel):
+    name: str
+    address: str
+    rating: Optional[float]
+    review_count: Optional[int]
+    category: str
+    website: Optional[str]
+    mobile: Optional[str]
+    email: Optional[str]
+    secondary_email: Optional[str]
+    google_maps_url: str
+    search_query: str
+    website_visited: bool
+    additional_contacts: str
+
+class SearchResponse(BaseModel):
+    success: bool
+    data: List[BusinessResult]
+    total_results: int
+    message: str
+
 @app.get("/")
 async def root():
     return {
@@ -25,7 +54,7 @@ async def root():
         "version": "1.0.0",
         "status": "active",
         "port": os.environ.get('PORT', 'NOT SET'),
-        "endpoints": ["/", "/health", "/test-dependencies", "/install-selenium", "/test-chrome"]
+        "endpoints": ["/", "/health", "/test-dependencies", "/install-selenium", "/test-chrome", "/test-google-maps", "/scrape"]
     }
 
 @app.get("/health")
@@ -235,12 +264,134 @@ async def test_chrome():
             }
 
     except Exception as e:
+        print(f"❌ Overall Chrome test failed: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Chrome test failed: {str(e)}",
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@app.get("/test-google-maps")
+async def test_google_maps_scraper():
+    """Test Google Maps scraping functionality with a small sample"""
+    try:
+        print("🗺️ Testing Google Maps scraper...")
+
+        # Import the scraper class
+        from main import AdvancedContactExtractor
+
+        # Create extractor instance with small test
+        print("🚀 Initializing Google Maps extractor...")
+        extractor = AdvancedContactExtractor(
+            search_query="coffee shops in San Francisco",
+            max_results=3,  # Small test
+            visit_websites=False  # Skip website visits for faster test
+        )
+
+        # Run extraction
+        print("⚡ Starting extraction process...")
+        results = extractor.run_extraction()
+        print(f"✅ Extraction completed. Results type: {type(results)}")
+
+        if results and isinstance(results, list) and len(results) > 0:
+            return {
+                "status": "success",
+                "message": f"Google Maps scraper working! Found {len(results)} businesses",
+                "sample_count": len(results),
+                "sample_data": results[:2] if len(results) >= 2 else results,  # Show first 2 results
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            return {
+                "status": "partial_success",
+                "message": "Scraper initialized but no results found",
+                "results": results,
+                "timestamp": datetime.now().isoformat()
+            }
+
+    except Exception as e:
+        print(f"❌ Google Maps scraper test failed: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Google Maps scraper failed: {str(e)}",
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
         print(f"❌ General error: {str(e)}")
         return {
             "status": "error",
             "message": f"Chrome test failed: {str(e)}",
             "timestamp": datetime.now().isoformat()
         }
+
+
+@app.post("/scrape", response_model=SearchResponse)
+async def scrape_google_maps(request: SearchRequest):
+    """
+    Main Google Maps scraping endpoint
+    """
+    try:
+        print(f"🔍 Received scraping request: {request.query}")
+        print(f"📊 Max results: {request.max_results}, Visit websites: {request.visit_websites}")
+
+        # Import the scraper class
+        from main import AdvancedContactExtractor
+
+        # Create extractor instance
+        print("🚀 Initializing Google Maps extractor...")
+        extractor = AdvancedContactExtractor(
+            search_query=request.query,
+            max_results=request.max_results,
+            visit_websites=request.visit_websites
+        )
+
+        # Run extraction
+        print("⚡ Starting extraction process...")
+        results = extractor.run_extraction()
+        print(f"✅ Extraction completed. Results type: {type(results)}")
+
+        if results and isinstance(results, list) and len(results) > 0:
+            # Convert results to BusinessResult objects
+            business_results = []
+            for result in results:
+                if isinstance(result, dict):
+                    business_result = BusinessResult(
+                        name=result.get('name', ''),
+                        address=result.get('address', ''),
+                        rating=result.get('rating'),
+                        review_count=result.get('review_count'),
+                        category=result.get('category', ''),
+                        website=result.get('website'),
+                        mobile=result.get('mobile'),
+                        email=result.get('email'),
+                        secondary_email=result.get('secondary_email'),
+                        google_maps_url=result.get('google_maps_url', ''),
+                        search_query=request.query,
+                        website_visited=result.get('website_visited', False),
+                        additional_contacts=result.get('additional_contacts', '')
+                    )
+                    business_results.append(business_result)
+
+            return SearchResponse(
+                success=True,
+                data=business_results,
+                total_results=len(business_results),
+                message=f"Successfully scraped {len(business_results)} businesses"
+            )
+        else:
+            return SearchResponse(
+                success=False,
+                data=[],
+                total_results=0,
+                message="No results found or extraction failed"
+            )
+
+    except Exception as e:
+        print(f"❌ Scraping error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Scraping failed: {str(e)}")
+
 
 if __name__ == "__main__":
     # Get port from environment, default to 8000
