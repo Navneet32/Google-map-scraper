@@ -177,12 +177,29 @@ async def test_chrome():
         else:
             print("⚠️ No Chrome binary found, using system default")
 
-        # Fix user data directory issue
+        # Fix user data directory issue with timestamp and PID for uniqueness
         import tempfile
         import uuid
-        temp_dir = tempfile.mkdtemp()
-        unique_user_data_dir = f"{temp_dir}/chrome_user_data_{uuid.uuid4().hex[:8]}"
+        import time
+        import os
+
+        # Create highly unique user data directory
+        timestamp = str(int(time.time() * 1000))  # milliseconds
+        pid = str(os.getpid())
+        random_id = uuid.uuid4().hex[:12]
+
+        temp_dir = tempfile.mkdtemp(prefix=f"chrome_{timestamp}_{pid}_")
+        unique_user_data_dir = f"{temp_dir}/chrome_data_{random_id}"
+
+        # Ensure directory exists
+        os.makedirs(unique_user_data_dir, exist_ok=True)
+
         chrome_options.add_argument(f"--user-data-dir={unique_user_data_dir}")
+
+        # Also add crash dumps directory to avoid conflicts
+        crash_dir = f"{temp_dir}/crashes_{random_id}"
+        os.makedirs(crash_dir, exist_ok=True)
+        chrome_options.add_argument(f"--crash-dumps-dir={crash_dir}")
 
         print("✅ Chrome options configured with unique user data directory")
 
