@@ -1,0 +1,8 @@
+# Ignore files that might confuse Railway's auto-detection
+main.py
+app.py
+*.pyc
+__pycache__/
+.git/
+.gitignore
+README.md
