@@ -143,9 +143,39 @@ async def test_chrome():
         chrome_options.add_argument("--disable-backgrounding-occluded-windows")
         chrome_options.add_argument("--disable-renderer-backgrounding")
         chrome_options.add_argument("--window-size=1920,1080")
+        chrome_options.add_argument("--remote-debugging-port=9222")
+        chrome_options.add_argument("--disable-logging")
+        chrome_options.add_argument("--disable-login-animations")
+        chrome_options.add_argument("--disable-notifications")
+        chrome_options.add_argument("--disable-default-apps")
+        chrome_options.add_argument("--no-first-run")
+        chrome_options.add_argument("--no-default-browser-check")
+        chrome_options.add_argument("--disable-infobars")
+        chrome_options.add_argument("--disable-translate")
+        chrome_options.add_argument("--disable-features=TranslateUI")
+        chrome_options.add_argument("--disable-features=VizDisplayCompositor,VizHitTestSurfaceLayer")
+        chrome_options.add_argument("--disable-ipc-flooding-protection")
 
-        # Set Chrome binary location for Docker
-        chrome_options.binary_location = "/usr/bin/google-chrome"
+        # Set Chrome binary location for Docker - try multiple paths
+        import os
+        chrome_paths = [
+            "/usr/bin/google-chrome",
+            "/usr/bin/google-chrome-stable",
+            "/usr/bin/chromium",
+            "/usr/bin/chromium-browser"
+        ]
+
+        chrome_binary = None
+        for path in chrome_paths:
+            if os.path.exists(path):
+                chrome_binary = path
+                break
+
+        if chrome_binary:
+            chrome_options.binary_location = chrome_binary
+            print(f"✅ Found Chrome binary at: {chrome_binary}")
+        else:
+            print("⚠️ No Chrome binary found, using system default")
 
         # Fix user data directory issue
         import tempfile
