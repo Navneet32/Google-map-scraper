@@ -526,7 +526,7 @@ async def test_google_maps_scraper():
         }
 
 
-@app.get("/scrape", response_model=SearchResponse)
+@app.post("/scrape", response_model=SearchResponse)
 async def scrape_google_maps(request: SearchRequest):
     """
     Main Google Maps scraping endpoint
