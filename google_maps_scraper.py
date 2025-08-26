@@ -613,8 +613,16 @@ class GoogleMapsBusinessScraper:
                 except:
                     continue
 
-            # Extract phone number
+           # Extract phone number with enhanced selectors
             phone_selectors = [
+                # XPath selectors for better phone detection
+                "//button[contains(@aria-label,'Phone')]",
+                "//button[contains(@data-item-id,'phone')]",
+                "//div[contains(@data-item-id,'phone')]//span",
+                "//a[contains(@href,'tel:')]",
+                "//span[contains(text(),'(') and contains(text(),')')]",
+                "//div[contains(@class,'fontBodyMedium') and contains(text(),'(')]",
+                # CSS selectors (fallback)
                 'button[data-item-id*="phone"]',
                 '.rogA2c button[aria-label*="phone"]',
                 'button[aria-label*="Call"]',
@@ -623,15 +631,33 @@ class GoogleMapsBusinessScraper:
 
             for selector in phone_selectors:
                 try:
-                    phone_element = self.driver.find_element(By.CSS_SELECTOR, selector)
-                    phone_text = phone_element.get_attribute('aria-label') or phone_element.text
+                    # Use XPath for XPath selectors, CSS for others
+                    if selector.startswith("//"):
+                        phone_element = self.driver.find_element(By.XPATH, selector)
+                    else:
+                        phone_element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    
+                    # Get phone text from different attributes
+                    phone_text = (phone_element.get_attribute('aria-label') or 
+                                phone_element.get_attribute('href') or 
+                                phone_element.text or '').strip()
+                    
+                    # Clean tel: prefix if present
+                    if phone_text.startswith('tel:'):
+                        phone_text = phone_text.replace('tel:', '')
+                    
+                    # Clean "Phone: " prefix if present
+                    if phone_text.startswith('Phone: '):
+                        phone_text = phone_text.replace('Phone: ', '')
 
                     # Try to extract phone number using patterns
-                    for pattern in self.phone_patterns:
-                        match = pattern.search(phone_text)
-                        if match:
-                            data['mobile'] = match.group(0)
-                            break
+                    if phone_text:
+                        for pattern in self.phone_patterns:
+                            match = pattern.search(phone_text)
+                            if match:
+                                data['mobile'] = match.group(0)
+                                print(f"Found phone via {selector}: {data['mobile']}")
+                                break
 
                     if data['mobile']:
                         break
