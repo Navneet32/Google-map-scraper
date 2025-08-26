@@ -622,6 +622,7 @@ class GoogleMapsBusinessScraper:
                 "//a[contains(@href,'tel:')]",
                 "//span[contains(text(),'(') and contains(text(),')')]",
                 "//div[contains(@class,'fontBodyMedium') and contains(text(),'(')]",
+                "//button[contains(@data-item-id, 'phone')]//div[contains(@class, 'Io6YTe')]",
                 # CSS selectors (fallback)
                 'button[data-item-id*="phone"]',
                 '.rogA2c button[aria-label*="phone"]',
