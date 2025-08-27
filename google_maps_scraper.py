@@ -20,7 +20,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 
 class GoogleMapsBusinessScraper:
-    def __init__(self, search_query, max_results=500, visit_websites=True):
+    def __init__(self, search_query, max_results=5000, visit_websites=True):
         self.search_query = search_query
         self.max_results = max_results
         self.visit_websites = visit_websites
@@ -879,7 +879,7 @@ class GoogleMapsBusinessScraper:
             print(f"⚠️ Cleanup error: {e}")
 
 
-def scrape_google_maps(query, max_results=500, visit_websites=True):
+def scrape_google_maps(query, max_results=5000, visit_websites=True):
     """Convenience function to scrape Google Maps"""
     scraper = GoogleMapsBusinessScraper(
         search_query=query,
