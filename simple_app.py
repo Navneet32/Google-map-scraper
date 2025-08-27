@@ -120,7 +120,7 @@ async def test_import():
         print("🧪 Testing import of google_maps_scraper...")
 
         # Try to import the speed-optimized scraper
-        from speed_optimized_enhanced import SpeedOptimizedEnhancedScraper as GoogleMapsBusinessScraper
+        from optimized_scraper import optimized_scrape_google_maps as GoogleMapsBusinessScraper
 
         # Try to create an instance
         scraper = GoogleMapsBusinessScraper("test query", max_results=1, visit_websites=False)
@@ -154,7 +154,7 @@ async def debug_scrape():
         print("🔍 Starting debug scrape...")
 
         # Import the speed-optimized scraper
-        from speed_optimized_enhanced import SpeedOptimizedEnhancedScraper as GoogleMapsBusinessScraper
+        from optimized_scraper import optimized_scrape_google_maps as GoogleMapsBusinessScraper
 
         # Create scraper instance
         scraper = GoogleMapsBusinessScraper("coffee shops in San Francisco", max_results=1, visit_websites=False)
@@ -237,7 +237,7 @@ async def debug_search():
     try:
         print("🔍 Starting detailed search debug...")
 
-        from speed_optimized_enhanced import SpeedOptimizedEnhancedScraper as GoogleMapsBusinessScraper
+        from optimized_scraper import optimized_scrape_google_maps as GoogleMapsBusinessScraper
         scraper = GoogleMapsBusinessScraper("coffee shops in San Francisco", max_results=1, visit_websites=False)
 
         debug_info = {
@@ -478,7 +478,7 @@ async def test_google_maps_scraper():
         print("🗺️ Testing Google Maps scraper...")
 
         # Import the speed-optimized scraper class
-        from speed_optimized_enhanced import SpeedOptimizedEnhancedScraper as GoogleMapsBusinessScraper
+        from optimized_scraper import optimized_scrape_google_maps as GoogleMapsBusinessScraper
 
         # Create scraper instance with small test
         print("🚀 Initializing Google Maps scraper...")
@@ -536,7 +536,7 @@ async def scrape_google_maps(request: SearchRequest):
         print(f"📊 Max results: {request.max_results}, Visit websites: {request.visit_websites}")
 
         # Import the speed-optimized scraper class
-        from speed_optimized_enhanced import SpeedOptimizedEnhancedScraper as GoogleMapsBusinessScraper
+        from optimized_scraper import optimized_scrape_google_maps as GoogleMapsBusinessScraper
 
         # Create scraper instance
         print("🚀 Initializing Google Maps scraper...")
