@@ -27,7 +27,7 @@ app.add_middleware(
 # Pydantic models
 class SearchRequest(BaseModel):
     query: str
-    max_results: Optional[int] = 500
+    max_results: Optional[int] = 5000
     visit_websites: Optional[bool] = True
 
 class BusinessResult(BaseModel):
