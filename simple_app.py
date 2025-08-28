@@ -115,19 +115,19 @@ async def test_dependencies():
 
 @app.get("/test-import")
 async def test_import():
-    """Test if we can import the optimized scraper"""
+    """Test if we can import the new scraper"""
     try:
-        print("🧪 Testing import of optimized_scraper...")
+        print("🧪 Testing import of google_maps_scraper...")
 
-        # Try to import the enhanced scraper
-        from enhanced_google_maps_scraper import EnhancedGoogleMapsBusinessScraper
+        # Try to import the new scraper
+        from google_maps_scraper import GoogleMapsBusinessScraper
 
         # Try to create an instance
-        scraper = EnhancedGoogleMapsBusinessScraper("test query", max_results=1)
+        scraper = GoogleMapsBusinessScraper("test query", max_results=1, visit_websites=False)
 
         return {
             "status": "success",
-            "message": "Successfully imported and instantiated EnhancedGoogleMapsBusinessScraper",
+            "message": "Successfully imported and instantiated GoogleMapsBusinessScraper",
             "scraper_class": str(type(scraper)),
             "timestamp": datetime.now().isoformat()
         }
@@ -151,13 +151,13 @@ async def test_import():
 async def debug_scrape():
     """Debug the scraping process step by step"""
     try:
-        print("🔍 Starting debug scrape with enhanced scraper...")
+        print("🔍 Starting debug scrape...")
 
-        # Import the enhanced scraper
-        from enhanced_google_maps_scraper import EnhancedGoogleMapsBusinessScraper
+        # Import the scraper
+        from google_maps_scraper import GoogleMapsBusinessScraper
 
         # Create scraper instance
-        scraper = EnhancedGoogleMapsBusinessScraper("coffee shops in San Francisco", max_results=1)
+        scraper = GoogleMapsBusinessScraper("coffee shops in San Francisco", max_results=1, visit_websites=False)
 
         debug_info = {
             "step_1_import": "✅ Successfully imported scraper",
@@ -175,26 +175,37 @@ async def debug_scrape():
             scraper.setup_browser()
             debug_info["step_3_browser_setup"] = "✅ Browser setup successful"
 
-            # Test search and link extraction
+            # Test search
             try:
-                links = scraper.search_and_extract_links()
-                if links:
+                search_result = scraper.search_google_maps()
+                if search_result:
                     debug_info["step_4_search"] = "✅ Google Maps search successful"
-                    debug_info["step_5_links"] = f"✅ Found {len(links)} business links"
 
-                    # Test data extraction from first link
+                    # Test link extraction
                     try:
-                        data = scraper.extract_business_data(links[0])
-                        if data and data.get('name') != 'Unknown Business':
-                            debug_info["step_6_extraction"] = f"✅ Successfully extracted: {data['name']}"
+                        links = scraper.get_business_links()
+                        debug_info["step_5_links"] = f"✅ Found {len(links)} business links"
+
+                        if links:
+                            # Test data extraction from first link
+                            try:
+                                data = scraper.extract_business_data(links[0])
+                                if data and data.get('name') != 'Unknown Business':
+                                    debug_info["step_6_extraction"] = f"✅ Successfully extracted: {data['name']}"
+                                else:
+                                    debug_info["step_6_extraction"] = "❌ Data extraction failed or returned empty"
+                            except Exception as e:
+                                debug_info["step_6_extraction"] = f"❌ Data extraction error: {str(e)}"
+                                debug_info["errors"].append(f"Data extraction: {str(e)}")
                         else:
-                            debug_info["step_6_extraction"] = "❌ Data extraction failed or returned empty"
+                            debug_info["step_5_links"] = "❌ No business links found"
+
                     except Exception as e:
-                        debug_info["step_6_extraction"] = f"❌ Data extraction error: {str(e)}"
-                        debug_info["errors"].append(f"Data extraction: {str(e)}")
+                        debug_info["step_5_links"] = f"❌ Link extraction error: {str(e)}"
+                        debug_info["errors"].append(f"Link extraction: {str(e)}")
+
                 else:
                     debug_info["step_4_search"] = "❌ Google Maps search failed"
-                    debug_info["step_5_links"] = "❌ No business links found"
 
             except Exception as e:
                 debug_info["step_4_search"] = f"❌ Search error: {str(e)}"
@@ -224,10 +235,10 @@ async def debug_scrape():
 async def debug_search():
     """Debug Google Maps search in detail"""
     try:
-        print("🔍 Starting detailed search debug with enhanced scraper...")
+        print("🔍 Starting detailed search debug...")
 
-        from enhanced_google_maps_scraper import EnhancedGoogleMapsBusinessScraper
-        scraper = EnhancedGoogleMapsBusinessScraper("coffee shops in San Francisco", max_results=1)
+        from google_maps_scraper import GoogleMapsBusinessScraper
+        scraper = GoogleMapsBusinessScraper("coffee shops in San Francisco", max_results=1, visit_websites=False)
 
         debug_info = {
             "browser_setup": "❌ Not attempted",
@@ -281,7 +292,7 @@ async def debug_search():
                     # Test search attempt
                     try:
                         print("🔍 Testing search functionality...")
-                        search_result = scraper.search_and_extract_links()
+                        search_result = scraper.search_google_maps()
 
                         if search_result:
                             debug_info["search_attempt"] = "✅ Search method returned True"
@@ -464,22 +475,28 @@ async def test_chrome():
 async def test_google_maps_scraper():
     """Test Google Maps scraping functionality with a small sample"""
     try:
-        print("🗺️ Testing Enhanced Google Maps scraper...")
+        print("🗺️ Testing Google Maps scraper...")
 
-        # Import the enhanced scraper class
-        from enhanced_google_maps_scraper import EnhancedGoogleMapsBusinessScraper
+        # Import the clean scraper class
+        from google_maps_scraper import GoogleMapsBusinessScraper
 
-        # Run extraction with small test
-        print("🚀 Starting enhanced extraction process...")
-        scraper = EnhancedGoogleMapsBusinessScraper("coffee shops in San Francisco", max_results=3)
+        # Create scraper instance with small test
+        print("🚀 Initializing Google Maps scraper...")
+        scraper = GoogleMapsBusinessScraper(
+            search_query="coffee shops in San Francisco",
+            max_results=3,  # Small test
+            visit_websites=False  # Skip website visits for faster test
+        )
+
+        # Run extraction
+        print("⚡ Starting extraction process...")
         results = scraper.run_extraction()
-        scraper.cleanup()
         print(f"✅ Extraction completed. Results type: {type(results)}")
 
         if results and isinstance(results, list) and len(results) > 0:
             return {
                 "status": "success",
-                "message": f"Enhanced Google Maps scraper working! Found {len(results)} businesses",
+                "message": f"Google Maps scraper working! Found {len(results)} businesses",
                 "sample_count": len(results),
                 "sample_data": results[:2] if len(results) >= 2 else results,  # Show first 2 results
                 "timestamp": datetime.now().isoformat()
@@ -487,7 +504,7 @@ async def test_google_maps_scraper():
         else:
             return {
                 "status": "partial_success",
-                "message": "Enhanced scraper initialized but no results found",
+                "message": "Scraper initialized but no results found",
                 "results": results,
                 "timestamp": datetime.now().isoformat()
             }
@@ -512,21 +529,27 @@ async def test_google_maps_scraper():
 @app.post("/scrape", response_model=SearchResponse)
 async def scrape_google_maps(request: SearchRequest):
     """
-    Main Google Maps scraping endpoint using enhanced scraper
+    Main Google Maps scraping endpoint
     """
     try:
         print(f"🔍 Received scraping request: {request.query}")
-        print(f"📊 Max results: {request.max_results}")
+        print(f"📊 Max results: {request.max_results}, Visit websites: {request.visit_websites}")
 
-        # Import the enhanced scraper class
-        from enhanced_google_maps_scraper import EnhancedGoogleMapsBusinessScraper
+        # Import the clean scraper class
+        from google_maps_scraper import GoogleMapsBusinessScraper
 
-        # Run extraction with enhanced scraper
-        print("🚀 Starting enhanced extraction process...")
-        scraper = EnhancedGoogleMapsBusinessScraper(request.query, max_results=request.max_results)
+        # Create scraper instance
+        print("🚀 Initializing Google Maps scraper...")
+        scraper = GoogleMapsBusinessScraper(
+            search_query=request.query,
+            max_results=request.max_results,
+            visit_websites=request.visit_websites
+        )
+
+        # Run extraction
+        print("⚡ Starting extraction process...")
         results = scraper.run_extraction()
-        scraper.cleanup()
-        print(f"✅ Extraction completed. Found {len(results) if results else 0} results")
+        print(f"✅ Extraction completed. Results type: {type(results)}")
 
         if results and isinstance(results, list) and len(results) > 0:
             # Convert results to BusinessResult objects
@@ -566,16 +589,7 @@ async def scrape_google_maps(request: SearchRequest):
 
     except Exception as e:
         print(f"❌ Scraping error: {str(e)}")
-        error_msg = f"Scraping failed: {str(e)}"
-        print(f"❌ {error_msg}")
-        import traceback
-        traceback.print_exc()
-        return SearchResponse(
-            success=False,
-            data=[],
-            total_results=0,
-            message=error_msg
-        )
+        raise HTTPException(status_code=500, detail=f"Scraping failed: {str(e)}")
 
 
 if __name__ == "__main__":
