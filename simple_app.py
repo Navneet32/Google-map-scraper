@@ -120,14 +120,14 @@ async def test_import():
         print("🧪 Testing import of optimized_scraper...")
 
         # Try to import the enhanced scraper
-        from enhanced_google_maps_scraper import EnhancedGoogleMapsScraper
+        from enhanced_google_maps_scraper import EnhancedGoogleMapsBusinessScraper
 
         # Try to create an instance
-        scraper = EnhancedGoogleMapsScraper("test query", max_results=1)
+        scraper = EnhancedGoogleMapsBusinessScraper("test query", max_results=1)
 
         return {
             "status": "success",
-            "message": "Successfully imported and instantiated EnhancedGoogleMapsScraper",
+            "message": "Successfully imported and instantiated EnhancedGoogleMapsBusinessScraper",
             "scraper_class": str(type(scraper)),
             "timestamp": datetime.now().isoformat()
         }
@@ -154,10 +154,10 @@ async def debug_scrape():
         print("🔍 Starting debug scrape with enhanced scraper...")
 
         # Import the enhanced scraper
-        from enhanced_google_maps_scraper import EnhancedGoogleMapsScraper
+        from enhanced_google_maps_scraper import EnhancedGoogleMapsBusinessScraper
 
         # Create scraper instance
-        scraper = EnhancedGoogleMapsScraper("coffee shops in San Francisco", max_results=1)
+        scraper = EnhancedGoogleMapsBusinessScraper("coffee shops in San Francisco", max_results=1)
 
         debug_info = {
             "step_1_import": "✅ Successfully imported scraper",
@@ -226,8 +226,8 @@ async def debug_search():
     try:
         print("🔍 Starting detailed search debug with enhanced scraper...")
 
-        from enhanced_google_maps_scraper import EnhancedGoogleMapsScraper
-        scraper = EnhancedGoogleMapsScraper("coffee shops in San Francisco", max_results=1)
+        from enhanced_google_maps_scraper import EnhancedGoogleMapsBusinessScraper
+        scraper = EnhancedGoogleMapsBusinessScraper("coffee shops in San Francisco", max_results=1)
 
         debug_info = {
             "browser_setup": "❌ Not attempted",
@@ -467,11 +467,11 @@ async def test_google_maps_scraper():
         print("🗺️ Testing Enhanced Google Maps scraper...")
 
         # Import the enhanced scraper class
-        from enhanced_google_maps_scraper import EnhancedGoogleMapsScraper
+        from enhanced_google_maps_scraper import EnhancedGoogleMapsBusinessScraper
 
         # Run extraction with small test
         print("🚀 Starting enhanced extraction process...")
-        scraper = EnhancedGoogleMapsScraper("coffee shops in San Francisco", max_results=3)
+        scraper = EnhancedGoogleMapsBusinessScraper("coffee shops in San Francisco", max_results=3)
         results = scraper.scrape()
         scraper.cleanup()
         print(f"✅ Extraction completed. Results type: {type(results)}")
@@ -519,11 +519,11 @@ async def scrape_google_maps(request: SearchRequest):
         print(f"📊 Max results: {request.max_results}")
 
         # Import the enhanced scraper class
-        from enhanced_google_maps_scraper import EnhancedGoogleMapsScraper
+        from enhanced_google_maps_scraper import EnhancedGoogleMapsBusinessScraper
 
         # Run extraction with enhanced scraper
         print("🚀 Starting enhanced extraction process...")
-        scraper = EnhancedGoogleMapsScraper(request.query, max_results=request.max_results)
+        scraper = EnhancedGoogleMapsBusinessScraper(request.query, max_results=request.max_results)
         results = scraper.scrape()
         scraper.cleanup()
         print(f"✅ Extraction completed. Found {len(results) if results else 0} results")
