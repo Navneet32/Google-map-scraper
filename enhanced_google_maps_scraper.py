@@ -46,35 +46,64 @@ class EnhancedGoogleMapsBusinessScraper:
         self.setup_browser()
     
     def setup_browser(self):
-        """Railway-optimized browser setup (based on working optimized_scraper.py)"""
-        print("🔧 Setting up optimized Chrome browser...")
+        """Railway-optimized browser setup with anti-detection (based on working optimized_scraper.py)"""
+        print("🔧 Setting up stealth Chrome browser for Railway...")
 
         self.chrome_options = Options()
         
-        # Performance-optimized options (simplified from working version)
+        # Railway-optimized options with anti-detection
         options = [
             "--headless=new",
             "--no-sandbox", 
             "--disable-dev-shm-usage",
             "--disable-gpu",
-            "--disable-extensions",
-            "--disable-images",  # Faster loading
             "--window-size=1920,1080",
-            "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            "--disable-web-security",
+            "--disable-features=VizDisplayCompositor",
+            "--disable-extensions",
+            "--disable-plugins",
+            # Remove --disable-images and --disable-javascript for better compatibility
+            "--disable-blink-features=AutomationControlled",
+            "--disable-features=VizDisplayCompositor,VizHitTestSurfaceLayer",
+            "--disable-ipc-flooding-protection",
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows", 
+            "--disable-renderer-backgrounding",
+            "--disable-field-trial-config",
+            "--disable-back-forward-cache",
+            "--disable-hang-monitor",
+            "--disable-prompt-on-repost",
+            "--disable-sync",
+            "--metrics-recording-only",
+            "--no-crash-upload",
+            "--no-default-browser-check",
+            "--no-first-run",
+            "--safebrowsing-disable-auto-update",
+            # More realistic user agent
+            "--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         ]
         
         for option in options:
             self.chrome_options.add_argument(option)
 
         self.chrome_options.add_experimental_option('prefs', {
-            'profile.managed_default_content_settings.images': 2,
             'profile.default_content_settings.popups': 0
         })
+        
+        # Add experimental options to avoid detection
+        self.chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        self.chrome_options.add_experimental_option('useAutomationExtension', False)
 
         try:
             self.driver = webdriver.Chrome(options=self.chrome_options)
-            self.wait = WebDriverWait(self.driver, 20)
-            print("✅ Browser setup completed")
+            
+            # Execute stealth scripts to avoid detection
+            self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            self.driver.execute_cdp_cmd('Network.setUserAgentOverride', {
+                "userAgent": 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            })
+            
+            print("✅ Stealth browser setup completed")
         except Exception as e:
             print(f"❌ Browser setup failed: {e}")
             raise
@@ -112,44 +141,86 @@ class EnhancedGoogleMapsBusinessScraper:
         all_links = set()
         
         try:
-            # Try different Google Maps URL format
-            alt_url = f"https://www.google.com/maps/search/{self.search_query.replace(' ', '%20')}"
-            print(f"🔄 Trying alternative URL: {alt_url}")
-            self.driver.get(alt_url)
-            time.sleep(10)
+            # Strategy 1: Try Google Search instead of Maps directly
+            print("🔄 Strategy 1: Trying Google Search approach...")
+            google_search_url = f"https://www.google.com/search?q={self.search_query.replace(' ', '+')}+google+maps"
+            self.driver.get(google_search_url)
+            time.sleep(8)
             
-            # Wait for results to load
-            from selenium.webdriver.support.ui import WebDriverWait
-            from selenium.webdriver.support import expected_conditions as EC
-            
-            try:
-                # Wait for any clickable elements that might be business listings
-                WebDriverWait(self.driver, 15).until(
-                    EC.presence_of_element_located((By.TAG_NAME, "a"))
-                )
-                print("✅ Page loaded with clickable elements")
-            except:
-                print("⚠️ Timeout waiting for elements")
-            
-            # Try more aggressive link extraction
-            time.sleep(5)
-            
-            # Get all links and filter for place URLs
-            all_elements = self.driver.find_elements(By.TAG_NAME, "a")
-            print(f"🔍 Found {len(all_elements)} total links on page")
-            
-            for element in all_elements:
+            # Look for Google Maps links in search results
+            search_links = self.driver.find_elements(By.TAG_NAME, "a")
+            for element in search_links:
                 try:
                     href = element.get_attribute('href')
                     if href and '/maps/place/' in href:
                         all_links.add(href)
-                        print(f"✅ Alternative found: {href[:60]}...")
-                        if len(all_links) >= 5:  # Get at least a few results
-                            break
+                        print(f"✅ Google Search found: {href[:60]}...")
                 except:
                     continue
             
-            print(f"🔄 Alternative search found {len(all_links)} links")
+            if len(all_links) > 0:
+                print(f"🎯 Google Search strategy found {len(all_links)} links")
+                return all_links
+            
+            # Strategy 2: Try different user agent
+            print("🔄 Strategy 2: Trying with different user agent...")
+            self.driver.execute_script("""
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined,
+                });
+            """)
+            
+            # Try Maps again with stealth
+            maps_url = f"https://www.google.com/maps/search/{self.search_query.replace(' ', '+')}"
+            self.driver.get(maps_url)
+            time.sleep(12)
+            
+            # Execute JavaScript to find elements
+            js_script = """
+                var links = [];
+                var allElements = document.querySelectorAll('a');
+                for (var i = 0; i < allElements.length; i++) {
+                    var href = allElements[i].href;
+                    if (href && href.includes('/maps/place/')) {
+                        links.push(href);
+                    }
+                }
+                return links;
+            """
+            
+            js_links = self.driver.execute_script(js_script)
+            print(f"🔍 JavaScript found {len(js_links)} potential links")
+            
+            for link in js_links:
+                all_links.add(link)
+                print(f"✅ JS found: {link[:60]}...")
+            
+            if len(all_links) > 0:
+                print(f"🎯 JavaScript strategy found {len(all_links)} links")
+                return all_links
+            
+            # Strategy 3: Try Bing Maps as fallback
+            print("🔄 Strategy 3: Trying Bing Maps fallback...")
+            bing_url = f"https://www.bing.com/maps?q={self.search_query.replace(' ', '+')}"
+            self.driver.get(bing_url)
+            time.sleep(10)
+            
+            # Look for business listings on Bing Maps
+            bing_elements = self.driver.find_elements(By.CSS_SELECTOR, "[data-entity-id]")
+            print(f"🔍 Bing Maps found {len(bing_elements)} business elements")
+            
+            # Convert Bing results to Google Maps format (approximate)
+            for i, element in enumerate(bing_elements[:10]):  # Limit to 10
+                try:
+                    business_name = element.get_attribute('aria-label') or f"Business_{i}"
+                    # Create a synthetic Google Maps URL (this is a fallback)
+                    synthetic_url = f"https://www.google.com/maps/place/{business_name.replace(' ', '+')}"
+                    all_links.add(synthetic_url)
+                    print(f"✅ Bing fallback: {synthetic_url[:60]}...")
+                except:
+                    continue
+            
+            print(f"🔄 Alternative strategies found {len(all_links)} total links")
             
         except Exception as e:
             print(f"❌ Alternative search failed: {e}")
