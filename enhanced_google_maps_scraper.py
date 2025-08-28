@@ -60,12 +60,12 @@ class EnhancedGoogleMapsBusinessScraper:
         self.setup_browser()
     
     def setup_browser(self):
-        """Enhanced browser setup with better stability"""
-        print("🔧 Setting up enhanced Chrome browser...")
+        """Enhanced browser setup with Railway-specific optimizations"""
+        print("🔧 Setting up enhanced Chrome browser for Railway...")
 
         self.chrome_options = Options()
         
-        # Enhanced options for better performance and stability
+        # Railway-optimized browser options
         browser_options = [
             "--headless=new",
             "--no-sandbox",
@@ -82,31 +82,75 @@ class EnhancedGoogleMapsBusinessScraper:
             "--window-size=1920,1080",  # Larger window for more content
             "--lang=en-US",
             "--accept-lang=en-US,en",
-            "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            # Railway-specific optimizations
+            "--disable-web-security",
+            "--disable-features=VizDisplayCompositor",
+            "--disable-blink-features=AutomationControlled",
+            "--no-first-run",
+            "--disable-default-apps",
+            "--disable-sync",
+            "--disable-translate",
+            "--hide-scrollbars",
+            "--metrics-recording-only",
+            "--mute-audio",
+            "--no-default-browser-check",
+            "--no-pings",
+            "--password-store=basic",
+            "--use-mock-keychain",
+            "--disable-component-extensions-with-background-pages",
+            "--disable-background-networking",
+            "--disable-component-update",
+            "--disable-client-side-phishing-detection",
+            "--disable-hang-monitor",
+            "--disable-popup-blocking",
+            "--disable-prompt-on-repost",
+            "--disable-domain-reliability",
+            "--disable-features=TranslateUI",
+            "--disable-ipc-flooding-protection",
+            "--enable-features=NetworkService,NetworkServiceLogging",
+            "--force-color-profile=srgb",
+            "--memory-pressure-off",
+            "--max_old_space_size=4096"
         ]
         
         for option in browser_options:
             self.chrome_options.add_argument(option)
 
-        # Enhanced preferences
+        # Railway-optimized preferences
         self.chrome_options.add_experimental_option('prefs', {
             'intl.accept_languages': 'en-US,en',
             'intl.charset_default': 'UTF-8',
             'profile.default_content_setting_values.notifications': 2,
             'profile.default_content_settings.popups': 0,
-            'profile.managed_default_content_settings.images': 2  # Block images for faster loading
+            'profile.managed_default_content_settings.images': 2,  # Block images for faster loading
+            'profile.default_content_setting_values.media_stream_mic': 2,
+            'profile.default_content_setting_values.media_stream_camera': 2,
+            'profile.default_content_setting_values.geolocation': 2,
+            'profile.default_content_setting_values.desktop_notifications': 2,
+            'profile.password_manager_enabled': False,
+            'credentials_enable_service': False,
+            'profile.default_content_settings.popups': 0
         })
+        
+        # Railway-specific experimental options
+        self.chrome_options.add_experimental_option('excludeSwitches', ['enable-automation'])
+        self.chrome_options.add_experimental_option('useAutomationExtension', False)
 
         try:
             self.driver = webdriver.Chrome(options=self.chrome_options)
-            self.wait = WebDriverWait(self.driver, 20)  # Increased timeout
-            print("✅ Enhanced browser setup completed")
+            self.wait = WebDriverWait(self.driver, 30)  # Longer timeout for Railway
+            
+            # Railway-specific: Remove automation indicators
+            self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            
+            print("✅ Railway-optimized browser setup completed")
         except Exception as e:
             print(f"❌ Browser setup failed: {e}")
             raise
 
     def search_google_maps(self):
-        """Enhanced Google Maps search with multiple strategies"""
+        """Enhanced Google Maps search with Railway-specific optimizations"""
         try:
             print(f"🔍 Enhanced search for: {self.search_query}")
 
@@ -115,10 +159,13 @@ class EnhancedGoogleMapsBusinessScraper:
             print(f"🌐 Navigating to: {search_url}")
 
             self.driver.get(search_url)
-            time.sleep(10)  # Longer initial wait
+            time.sleep(15)  # Longer wait for Railway environment
 
             # Handle consent/cookies more aggressively
             self._handle_consent_and_cookies()
+
+            # Railway-specific: Additional wait and page check
+            self._railway_page_verification()
 
             # Wait for results with multiple indicators
             self._wait_for_search_results()
@@ -128,6 +175,64 @@ class EnhancedGoogleMapsBusinessScraper:
 
         except Exception as e:
             print(f"❌ Enhanced search failed: {e}")
+            # Railway fallback: Try alternative search method
+            return self._fallback_search_strategy()
+    
+    def _railway_page_verification(self):
+        """Railway-specific page verification and debugging"""
+        try:
+            print("🔍 Railway environment verification...")
+            
+            # Check if page loaded properly
+            page_title = self.driver.title
+            current_url = self.driver.current_url
+            
+            print(f"  Page title: {page_title[:50]}...")
+            print(f"  Current URL: {current_url[:80]}...")
+            
+            # Check for common Railway/headless issues
+            if "blocked" in page_title.lower() or "captcha" in page_title.lower():
+                print("⚠️ Detected potential blocking - trying refresh")
+                self.driver.refresh()
+                time.sleep(10)
+            
+            # Verify page has loaded content
+            body_text = self.driver.find_element(By.TAG_NAME, "body").text
+            if len(body_text) < 100:
+                print("⚠️ Page seems empty - waiting longer")
+                time.sleep(10)
+                
+        except Exception as e:
+            print(f"⚠️ Railway verification error: {e}")
+    
+    def _fallback_search_strategy(self):
+        """Fallback search strategy for Railway environment"""
+        try:
+            print("🔄 Trying fallback search strategy...")
+            
+            # Try different URL format
+            fallback_url = f"https://www.google.com/maps/search/{self.search_query.replace(' ', '%20')}"
+            print(f"🌐 Fallback URL: {fallback_url}")
+            
+            self.driver.get(fallback_url)
+            time.sleep(20)  # Even longer wait
+            
+            # Try to interact with page to trigger loading
+            try:
+                body = self.driver.find_element(By.TAG_NAME, "body")
+                body.click()
+                time.sleep(5)
+            except:
+                pass
+            
+            self._handle_consent_and_cookies()
+            self._wait_for_search_results()
+            
+            print("✅ Fallback search completed")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Fallback search failed: {e}")
             return False
 
     def _handle_consent_and_cookies(self):
@@ -234,6 +339,11 @@ class EnhancedGoogleMapsBusinessScraper:
                 '//div[contains(@class, "hfpxzc")]'  # New Google Maps card selector
             ]
 
+            # Railway-specific: Initial element detection
+            if scroll_attempts == 0:
+                print("🔍 Railway environment - checking initial page state...")
+                self._debug_page_elements()
+            
             while scroll_attempts < max_scrolls and len(all_links) < self.max_results:
                 print(f"🔄 Enhanced scroll {scroll_attempts + 1}/{max_scrolls}")
 
@@ -248,10 +358,20 @@ class EnhancedGoogleMapsBusinessScraper:
                                 if href and '/maps/place/' in href and href not in all_links:
                                     all_links.add(href)
                                     new_links_count += 1
+                                    
+                                    # Railway debug: Show first few found links
+                                    if len(all_links) <= 5:
+                                        print(f"  ✅ Railway found: {href[:60]}...")
+                                        
                             except:
                                 continue
                     except:
                         continue
+                
+                # Railway-specific: Extra debugging when no links found
+                if new_links_count == 0 and scroll_attempts < 5:
+                    print(f"  ⚠️ No links found on attempt {scroll_attempts + 1} - debugging...")
+                    self._debug_no_links_found()
 
                 current_count = len(all_links)
                 progress = (current_count / self.max_results) * 100 if self.max_results > 0 else 0
@@ -262,34 +382,41 @@ class EnhancedGoogleMapsBusinessScraper:
                     print(f"🎯 Target reached: {current_count} links")
                     break
 
-                # Super aggressive patience logic
+                # Railway-optimized patience logic
                 if new_links_count == 0:
                     no_new_content_count += 1
-                    # Try different scroll strategies when stuck
-                    if no_new_content_count == 3:
-                        print("🔄 Trying alternative scroll strategy...")
+                    # Try different strategies more aggressively for Railway
+                    if no_new_content_count == 2:  # Earlier intervention
+                        print("🔄 Railway: Trying alternative scroll strategy...")
                         self._alternative_scroll_strategy()
-                    elif no_new_content_count == 6:
-                        print("🔄 Trying page refresh strategy...")
+                    elif no_new_content_count == 4:  # Earlier refresh
+                        print("🔄 Railway: Trying page refresh strategy...")
                         self._page_refresh_strategy()
-                    elif no_new_content_count == 10:
-                        print("🔄 Trying zoom out strategy...")
+                    elif no_new_content_count == 7:  # Earlier zoom
+                        print("🔄 Railway: Trying zoom out strategy...")
                         self._zoom_out_strategy()
+                    elif no_new_content_count == 12:  # Railway-specific strategy
+                        print("🔄 Railway: Trying complete page reload...")
+                        self._railway_complete_reload()
                     
                     if no_new_content_count >= max_patience:
-                        print(f"⏹️ No new content after {max_patience} attempts")
+                        print(f"⏹️ Railway: No new content after {max_patience} attempts")
+                        # Final Railway attempt
+                        final_links = self._railway_final_attempt()
+                        if final_links:
+                            all_links.update(final_links)
                         break
                 else:
                     no_new_content_count = 0
 
-                # Enhanced scrolling strategy
+                # Railway-optimized scrolling strategy
                 self._enhanced_scroll()
                 
-                # More aggressive delay strategy
+                # Railway-specific delay strategy (longer delays for stability)
                 if new_links_count > 0:
-                    delay = random.uniform(1, 2)  # Faster when finding results
+                    delay = random.uniform(2, 4)  # Slower even when finding results
                 else:
-                    delay = random.uniform(3, 5)  # Slower when stuck
+                    delay = random.uniform(5, 8)  # Much slower when stuck
                 time.sleep(delay)
                 
                 scroll_attempts += 1
@@ -450,6 +577,156 @@ class EnhancedGoogleMapsBusinessScraper:
             
         except Exception as e:
             print(f"⚠️ Zoom out failed: {e}")
+    
+    def _debug_page_elements(self):
+        """Debug page elements for Railway environment"""
+        try:
+            print("🔍 Railway debugging - checking page elements...")
+            
+            # Check basic page structure
+            debug_selectors = [
+                ('//div', 'All divs'),
+                ('//a', 'All links'),
+                ('//div[contains(@class, "hfpxzc")]', 'hfpxzc divs'),
+                ('//div[contains(@class, "Nv2PK")]', 'Nv2PK divs'),
+                ('//a[contains(@href, "maps")]', 'Maps links'),
+                ('//div[@role="article"]', 'Article divs'),
+                ('//div[contains(@class, "THOPZb")]', 'THOPZb divs')
+            ]
+            
+            for selector, description in debug_selectors:
+                try:
+                    elements = self.driver.find_elements(By.XPATH, selector)
+                    print(f"  {description}: {len(elements)} found")
+                    
+                    # Show sample text for first few elements
+                    if len(elements) > 0 and 'links' in description.lower():
+                        for i, elem in enumerate(elements[:3]):
+                            try:
+                                href = elem.get_attribute('href') or 'No href'
+                                text = elem.text[:30] or 'No text'
+                                print(f"    [{i+1}] {text}... -> {href[:50]}...")
+                            except:
+                                pass
+                                
+                except Exception as e:
+                    print(f"  {description}: Error - {e}")
+            
+            # Check page source for debugging
+            page_source_length = len(self.driver.page_source)
+            print(f"  Page source length: {page_source_length} characters")
+            
+            if page_source_length < 10000:
+                print("⚠️ Page source seems small - potential loading issue")
+                
+        except Exception as e:
+            print(f"⚠️ Debug page elements error: {e}")
+    
+    def _debug_no_links_found(self):
+        """Debug when no links are found"""
+        try:
+            print("🔍 Debugging why no links were found...")
+            
+            # Check if we're on the right page
+            current_url = self.driver.current_url
+            page_title = self.driver.title
+            
+            print(f"  Current URL: {current_url[:80]}...")
+            print(f"  Page title: {page_title[:50]}...")
+            
+            # Check for error messages or blocks
+            error_indicators = [
+                '//div[contains(text(), "blocked")]',
+                '//div[contains(text(), "error")]',
+                '//div[contains(text(), "captcha")]',
+                '//div[contains(text(), "robot")]'
+            ]
+            
+            for indicator in error_indicators:
+                try:
+                    elements = self.driver.find_elements(By.XPATH, indicator)
+                    if elements:
+                        print(f"⚠️ Found potential issue: {elements[0].text[:50]}...")
+                except:
+                    pass
+            
+            # Try to take a screenshot for debugging (if possible)
+            try:
+                screenshot_path = f"/tmp/debug_screenshot_{int(time.time())}.png"
+                self.driver.save_screenshot(screenshot_path)
+                print(f"  Screenshot saved: {screenshot_path}")
+            except:
+                print("  Could not save screenshot")
+                
+        except Exception as e:
+            print(f"⚠️ Debug no links error: {e}")
+    
+    def _railway_complete_reload(self):
+        """Complete page reload strategy for Railway"""
+        try:
+            print("🔄 Railway: Complete page reload...")
+            
+            current_url = self.driver.current_url
+            self.driver.get(current_url)
+            time.sleep(20)  # Long wait after reload
+            
+            # Re-handle consent
+            self._handle_consent_and_cookies()
+            
+            # Wait for page to stabilize
+            time.sleep(10)
+            
+            print("✅ Railway: Complete reload finished")
+            
+        except Exception as e:
+            print(f"⚠️ Railway reload error: {e}")
+    
+    def _railway_final_attempt(self):
+        """Final attempt to find links using alternative methods"""
+        try:
+            print("🔄 Railway: Final attempt using alternative methods...")
+            
+            final_links = set()
+            
+            # Method 1: Search page source directly
+            page_source = self.driver.page_source
+            import re
+            
+            # Find all Google Maps place URLs in page source
+            place_pattern = r'https://www\.google\.com/maps/place/[^"\s]+'
+            matches = re.findall(place_pattern, page_source)
+            
+            for match in matches:
+                if '/maps/place/' in match:
+                    final_links.add(match)
+                    print(f"  ✅ Source found: {match[:60]}...")
+            
+            # Method 2: Try JavaScript execution
+            try:
+                js_links = self.driver.execute_script("""
+                    var links = [];
+                    var elements = document.querySelectorAll('a[href*="/maps/place/"]');
+                    for (var i = 0; i < elements.length; i++) {
+                        if (elements[i].href) {
+                            links.push(elements[i].href);
+                        }
+                    }
+                    return links;
+                """)
+                
+                for link in js_links:
+                    final_links.add(link)
+                    print(f"  ✅ JS found: {link[:60]}...")
+                    
+            except Exception as e:
+                print(f"  ⚠️ JS method failed: {e}")
+            
+            print(f"  Railway final attempt found {len(final_links)} links")
+            return final_links
+            
+        except Exception as e:
+            print(f"⚠️ Railway final attempt error: {e}")
+            return set()
 
     def extract_business_data(self, business_url):
         """Enhanced business data extraction"""
