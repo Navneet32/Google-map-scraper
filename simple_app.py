@@ -7,7 +7,6 @@ import uvicorn
 import os
 import time
 import sys
-from enhanced_google_maps_scraper import enhanced_scrape_google_maps
 
 print("Starting Google Maps Scraper API...")
 print(f"PORT environment variable: {os.environ.get('PORT', 'NOT SET')}")
@@ -476,24 +475,23 @@ async def test_chrome():
 async def test_google_maps_scraper():
     """Test Google Maps scraping functionality with a small sample"""
     try:
-        print("🗺️ Testing Enhanced Google Maps scraper...")
+        print("🗺️ Testing Optimized Google Maps scraper...")
 
-        # Import the enhanced scraper function
-        from enhanced_google_maps_scraper import enhanced_scrape_google_maps
+        # Import the optimized scraper class
+        from optimized_scraper import optimized_scrape_google_maps
 
         # Run extraction with small test
-        print("🚀 Starting enhanced extraction process...")
-        results = enhanced_scrape_google_maps(
+        print("🚀 Starting optimized extraction process...")
+        results = optimized_scrape_google_maps(
             query="coffee shops in San Francisco",
-            max_results=3,
-            visit_websites=False
+            max_results=3  # Small test
         )
         print(f"✅ Extraction completed. Results type: {type(results)}")
 
         if results and isinstance(results, list) and len(results) > 0:
             return {
                 "status": "success",
-                "message": f"Enhanced Google Maps scraper working! Found {len(results)} businesses",
+                "message": f"Optimized Google Maps scraper working! Found {len(results)} businesses",
                 "sample_count": len(results),
                 "sample_data": results[:2] if len(results) >= 2 else results,  # Show first 2 results
                 "timestamp": datetime.now().isoformat()
@@ -501,7 +499,7 @@ async def test_google_maps_scraper():
         else:
             return {
                 "status": "partial_success",
-                "message": "Enhanced scraper initialized but no results found",
+                "message": "Optimized scraper initialized but no results found",
                 "results": results,
                 "timestamp": datetime.now().isoformat()
             }
@@ -526,21 +524,20 @@ async def test_google_maps_scraper():
 @app.post("/scrape", response_model=SearchResponse)
 async def scrape_google_maps(request: SearchRequest):
     """
-    Main Google Maps scraping endpoint using enhanced scraper
+    Main Google Maps scraping endpoint using optimized scraper
     """
     try:
         print(f"🔍 Received scraping request: {request.query}")
         print(f"📊 Max results: {request.max_results}")
 
-        # Import the enhanced scraper function
-        from enhanced_google_maps_scraper import enhanced_scrape_google_maps
+        # Import the optimized scraper function
+        from optimized_scraper import optimized_scrape_google_maps
 
-        # Run extraction with enhanced scraper
-        print("🚀 Starting enhanced extraction process...")
-        results = enhanced_scrape_google_maps(
+        # Run extraction with optimized scraper
+        print("🚀 Starting optimized extraction process...")
+        results = optimized_scrape_google_maps(
             query=request.query,
-            max_results=min(100, request.max_results or 100),
-            visit_websites=request.visit_websites
+            max_results=request.max_results
         )
         print(f"✅ Extraction completed. Found {len(results) if results else 0} results")
 
