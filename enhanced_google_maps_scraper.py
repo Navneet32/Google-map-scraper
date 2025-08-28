@@ -84,16 +84,21 @@ class EnhancedGoogleMapsBusinessScraper:
         try:
             print(f"🔍 Searching for: {self.search_query}")
             
-            # Primary search URL
+            # Direct search URL (from working version)
             search_url = f"https://www.google.com/maps/search/{self.search_query.replace(' ', '+')}"
             self.driver.get(search_url)
-            time.sleep(8)
+            time.sleep(8)  # Wait for page load
             
-            # Handle consent
+            # Handle consent (from working version)
             self._handle_consent()
             
-            # Extract links with optimized scrolling
+            # Extract links with optimized method
             all_links = self._extract_links_optimized()
+            
+            # Fallback: Try alternative search approach if no results
+            if len(all_links) == 0:
+                print("🔄 No results found, trying alternative approach...")
+                all_links = self._try_alternative_search()
             
             print(f"✅ Found {len(all_links)} business links")
             return list(all_links)[:self.max_results]
@@ -101,6 +106,55 @@ class EnhancedGoogleMapsBusinessScraper:
         except Exception as e:
             print(f"❌ Search failed: {e}")
             return []
+
+    def _try_alternative_search(self):
+        """Alternative search method for Railway environment"""
+        all_links = set()
+        
+        try:
+            # Try different Google Maps URL format
+            alt_url = f"https://www.google.com/maps/search/{self.search_query.replace(' ', '%20')}"
+            print(f"🔄 Trying alternative URL: {alt_url}")
+            self.driver.get(alt_url)
+            time.sleep(10)
+            
+            # Wait for results to load
+            from selenium.webdriver.support.ui import WebDriverWait
+            from selenium.webdriver.support import expected_conditions as EC
+            
+            try:
+                # Wait for any clickable elements that might be business listings
+                WebDriverWait(self.driver, 15).until(
+                    EC.presence_of_element_located((By.TAG_NAME, "a"))
+                )
+                print("✅ Page loaded with clickable elements")
+            except:
+                print("⚠️ Timeout waiting for elements")
+            
+            # Try more aggressive link extraction
+            time.sleep(5)
+            
+            # Get all links and filter for place URLs
+            all_elements = self.driver.find_elements(By.TAG_NAME, "a")
+            print(f"🔍 Found {len(all_elements)} total links on page")
+            
+            for element in all_elements:
+                try:
+                    href = element.get_attribute('href')
+                    if href and '/maps/place/' in href:
+                        all_links.add(href)
+                        print(f"✅ Alternative found: {href[:60]}...")
+                        if len(all_links) >= 5:  # Get at least a few results
+                            break
+                except:
+                    continue
+            
+            print(f"🔄 Alternative search found {len(all_links)} links")
+            
+        except Exception as e:
+            print(f"❌ Alternative search failed: {e}")
+        
+        return all_links
 
     def _handle_consent(self):
         """Handle consent popups (simplified from working version)"""
@@ -132,33 +186,92 @@ class EnhancedGoogleMapsBusinessScraper:
         patience = 0
         max_patience = 30
         
-        # Comprehensive selectors for business links (from working version)
+        # Debug: Check page state on first attempt
+        if scroll_count == 0:
+            try:
+                page_title = self.driver.title
+                current_url = self.driver.current_url
+                print(f"🔍 Debug - Page title: {page_title}")
+                print(f"🔍 Debug - Current URL: {current_url}")
+                
+                # Check if we're blocked or redirected
+                if "sorry" in page_title.lower() or "blocked" in page_title.lower():
+                    print("❌ Google appears to be blocking access")
+                    return all_links
+                    
+                # Check for common page elements
+                body_text = self.driver.find_element(By.TAG_NAME, "body").text[:200]
+                print(f"🔍 Debug - Page body preview: {body_text}")
+                
+            except Exception as e:
+                print(f"🔍 Debug error: {e}")
+        
+        # Updated comprehensive selectors for current Google Maps DOM
         selectors = [
             '//a[contains(@href, "/maps/place/")]',
             '//div[@role="article"]//a[contains(@href, "/maps/place/")]',
             '//div[contains(@class, "Nv2PK")]//a[contains(@href, "/maps/place/")]',
             '//div[contains(@class, "bfdHYd")]//a[contains(@href, "/maps/place/")]',
-            '//div[contains(@class, "lI9IFe")]//a[contains(@href, "/maps/place/")]'
+            '//div[contains(@class, "lI9IFe")]//a[contains(@href, "/maps/place/")]',
+            '//a[contains(@data-value, "Feature")]',
+            '//div[contains(@class, "THOPZb")]//a',
+            '//div[contains(@class, "VkpGBb")]//a',
+            '//div[contains(@jsaction, "click")]//a[contains(@href, "place")]',
+            '//a[contains(@aria-label, "")][@href*="place"]'
         ]
         
         while scroll_count < max_scrolls and len(all_links) < self.max_results:
             print(f"🔄 Scroll {scroll_count + 1}/{max_scrolls} - Found: {len(all_links)} links")
             
-            # Extract links
+            # Extract links with detailed debugging
             new_count = 0
-            for selector in selectors:
+            for i, selector in enumerate(selectors):
                 try:
                     elements = self.driver.find_elements(By.XPATH, selector)
+                    if scroll_count < 3:  # Debug first few attempts
+                        print(f"🔍 Selector {i+1}: Found {len(elements)} elements")
+                    
                     for element in elements:
                         try:
                             href = element.get_attribute('href')
                             if href and '/maps/place/' in href and href not in all_links:
                                 all_links.add(href)
                                 new_count += 1
+                                if scroll_count < 3:  # Debug first few links
+                                    print(f"✅ Found business link: {href[:60]}...")
                         except:
                             continue
-                except:
+                except Exception as e:
+                    if scroll_count < 3:
+                        print(f"❌ Selector {i+1} error: {e}")
                     continue
+            
+            # Additional fallback: Try CSS selectors if XPath fails
+            if new_count == 0 and scroll_count < 5:
+                css_selectors = [
+                    'a[href*="/maps/place/"]',
+                    '[data-result-index] a',
+                    '.section-result a',
+                    '[jsaction*="click"] a[href*="place"]'
+                ]
+                
+                for css_selector in css_selectors:
+                    try:
+                        elements = self.driver.find_elements(By.CSS_SELECTOR, css_selector)
+                        print(f"🔍 CSS Selector '{css_selector}': Found {len(elements)} elements")
+                        
+                        for element in elements:
+                            try:
+                                href = element.get_attribute('href')
+                                if href and '/maps/place/' in href and href not in all_links:
+                                    all_links.add(href)
+                                    new_count += 1
+                                    print(f"✅ CSS Found: {href[:60]}...")
+                            except:
+                                continue
+                    except Exception as e:
+                        print(f"❌ CSS Selector error: {e}")
+                        continue
             
             # Check progress
             if new_count == 0:
