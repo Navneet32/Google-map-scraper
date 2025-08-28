@@ -35,10 +35,14 @@ class GoogleMapsBusinessScraper:
         ]
         
         self.phone_patterns = [
-            re.compile(r'\+?1?[-.\s]?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})'),
+            re.compile(r'\+?1?[-.]\s?\(?([0-9]{3})\)?[-.]\s?([0-9]{3})[-.]\s?([0-9]{4})'),
             re.compile(r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b'),
             re.compile(r'\(\d{3}\)\s?\d{3}[-.]?\d{4}'),
-            re.compile(r'tel[:\s]*(\+?1?[-.\s]?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4})', re.IGNORECASE),
+            re.compile(r'tel[:\s]*(\+?1?[-.]\s?\(?[0-9]{3}\)?[-.]\s?[0-9]{3}[-.]\s?[0-9]{4})', re.IGNORECASE),
+            re.compile(r'\+?\d{1,3}[-.]\s?\(?\d{3}\)?[-.]\s?\d{3}[-.]\s?\d{4}'),  # More flexible international
+            re.compile(r'\d{10}'),  # Just 10 digits
+            re.compile(r'\+\d{1,3}\s?\d{3,4}\s?\d{3}\s?\d{4}'),  # International with spaces
+            re.compile(r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}'),  # US format variations
         ]
         
         self.setup_browser()
@@ -313,7 +317,7 @@ class GoogleMapsBusinessScraper:
 
             # Wait for results to load with longer timeout
             print("⏳ Waiting for search results to load...")
-            time.sleep(5)
+            time.sleep(8)  # Increased wait time for more results to load
 
             # Check if we have results by looking for business listings
             try:
@@ -366,15 +370,19 @@ class GoogleMapsBusinessScraper:
             print("📋 Extracting business links...")
             all_links = set()
             scroll_attempts = 0
-            max_scrolls = 8
+            max_scrolls = 25  # Much more aggressive scrolling
             no_new_content_count = 0
 
-            # Multiple strategies to find business links
+            # Enhanced strategies to find business links with more selectors
             link_selectors = [
                 '//a[contains(@href, "/maps/place/")]',
                 '//div[@role="article"]//a[contains(@href, "/maps/place/")]',
                 '//div[contains(@class, "Nv2PK")]//a[contains(@href, "/maps/place/")]',
-                '//div[contains(@class, "bfdHYd")]//a[contains(@href, "/maps/place/")]'
+                '//div[contains(@class, "bfdHYd")]//a[contains(@href, "/maps/place/")]',
+                '//div[contains(@class, "lI9IFe")]//a[contains(@href, "/maps/place/")]',
+                '//div[contains(@jsaction, "mouseover")]//a[contains(@href, "/maps/place/")]',
+                '//div[contains(@class, "THOPZb")]//a[contains(@href, "/maps/place/")]',
+                '//div[contains(@class, "VkpGBb")]//a[contains(@href, "/maps/place/")]'
             ]
 
             while scroll_attempts < max_scrolls and len(all_links) < self.max_results:
@@ -399,29 +407,36 @@ class GoogleMapsBusinessScraper:
                         continue
 
                 print(f"📊 Found {len(all_links)} total links (+{new_links_count} new)")
+                
+                # Debug: Show progress toward target
+                progress_percent = (len(all_links) / self.max_results) * 100 if self.max_results > 0 else 0
+                print(f"📈 Progress: {progress_percent:.1f}% of target ({len(all_links)}/{self.max_results})")
 
                 # If we have enough links, break early
                 if len(all_links) >= self.max_results:
                     print(f"🎯 Reached target of {self.max_results} links")
                     break
 
-                # Check if we found new content
+                # Check if we found new content - be more patient
                 if new_links_count == 0:
                     no_new_content_count += 1
-                    if no_new_content_count >= 3:
-                        print("⏹️ No new content found after 3 attempts, stopping")
+                    if no_new_content_count >= 5:  # Increased patience
+                        print("⏹️ No new content found after 5 attempts, stopping")
                         break
                 else:
                     no_new_content_count = 0
 
                 # Scroll down to load more results - try multiple scroll methods
                 try:
-                    # Method 1: Find and scroll the results panel
+                    # Enhanced scrolling with more selectors and methods
                     scrollable_selectors = [
                         '[role="main"]',
                         '.m6QErb',
                         '#pane',
-                        '.siAUzd'
+                        '.siAUzd',
+                        '.section-scrollbox',
+                        '.section-layout',
+                        '.section-listbox'
                     ]
 
                     scrolled = False
@@ -436,11 +451,35 @@ class GoogleMapsBusinessScraper:
                             continue
 
                     if not scrolled:
-                        # Fallback: scroll the entire page
-                        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                        print("✅ Used fallback page scroll")
+                        # Multiple fallback scroll methods
+                        try:
+                            # Method 1: Scroll page
+                            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                            time.sleep(1)
+                            # Method 2: Scroll by pixels
+                            self.driver.execute_script("window.scrollBy(0, 1000);")
+                            time.sleep(1)
+                            # Method 3: Try to find and scroll results container
+                            results_container = self.driver.find_element(By.CSS_SELECTOR, "div[role='main']")
+                            self.driver.execute_script("arguments[0].scrollTop += 1000", results_container)
+                            print("✅ Used enhanced fallback scrolling")
+                        except:
+                            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                            print("✅ Used basic fallback page scroll")
 
-                    time.sleep(random.uniform(2, 4))  # Random delay to avoid detection
+                    # Multiple scroll actions per attempt
+                    for micro_scroll in range(3):  # Do 3 micro-scrolls per attempt
+                        try:
+                            if scrolled:
+                                results_panel = self.driver.find_element(By.CSS_SELECTOR, scrollable_selectors[0])
+                                self.driver.execute_script("arguments[0].scrollTop += 500", results_panel)
+                            else:
+                                self.driver.execute_script("window.scrollBy(0, 500);")
+                            time.sleep(1)
+                        except:
+                            pass
+                    
+                    time.sleep(random.uniform(4, 6))  # Even longer delay for content to load
 
                 except Exception as e:
                     print(f"⚠️ Scroll error: {e}")
@@ -613,57 +652,8 @@ class GoogleMapsBusinessScraper:
                 except:
                     continue
 
-           # Extract phone number with enhanced selectors
-            phone_selectors = [
-                # XPath selectors for better phone detection
-                "//button[contains(@aria-label,'Phone')]",
-                "//button[contains(@data-item-id,'phone')]",
-                "//div[contains(@data-item-id,'phone')]//span",
-                "//a[contains(@href,'tel:')]",
-                "//span[contains(text(),'(') and contains(text(),')')]",
-                "//div[contains(@class,'fontBodyMedium') and contains(text(),'(')]",
-                # CSS selectors (fallback)
-                'button[data-item-id*="phone"]',
-                '.rogA2c button[aria-label*="phone"]',
-                'button[aria-label*="Call"]',
-                '.Io6YTe.fontBodyMedium.kR99db.fdkmkc[aria-label*="phone"]'
-            ]
-
-            for selector in phone_selectors:
-                try:
-                    # Use XPath for XPath selectors, CSS for others
-                    if selector.startswith("//"):
-                        phone_element = self.driver.find_element(By.XPATH, selector)
-                    else:
-                        phone_element = self.driver.find_element(By.CSS_SELECTOR, selector)
-                    
-                    # Get phone text from different attributes
-                    phone_text = (phone_element.get_attribute('aria-label') or 
-                                phone_element.get_attribute('href') or 
-                                phone_element.text or '').strip()
-                    
-                    # Clean tel: prefix if present
-                    if phone_text.startswith('tel:'):
-                        phone_text = phone_text.replace('tel:', '')
-                    
-                    # Clean "Phone: " prefix if present
-                    if phone_text.startswith('Phone: '):
-                        phone_text = phone_text.replace('Phone: ', '')
-
-                    # Try to extract phone number using patterns
-                    if phone_text:
-                        for pattern in self.phone_patterns:
-                            match = pattern.search(phone_text)
-                            if match:
-                                data['mobile'] = match.group(0)
-                                print(f"Found phone via {selector}: {data['mobile']}")
-                                break
-
-                    if data['mobile']:
-                        break
-
-                except:
-                    continue
+            # Extract phone number with comprehensive approach
+            data['mobile'] = self.extract_phone_number()
 
             self.extracted_count += 1
 
@@ -683,6 +673,121 @@ class GoogleMapsBusinessScraper:
             print(f"❌ Data extraction failed: {e}")
             import traceback
             traceback.print_exc()
+            return None
+
+    def extract_phone_number(self):
+        """
+        Comprehensive phone number extraction with multiple strategies
+        """
+        try:
+            # Strategy 1: Primary phone button selectors (most reliable)
+            primary_selectors = [
+                "//button[@data-item-id='phone:tel:']",
+                "//button[contains(@data-item-id,'phone')]",
+                "//div[@data-item-id='phone:tel:']",
+                "//div[contains(@data-item-id,'phone')]//div[contains(@class,'Io6YTe')]",
+            ]
+            
+            for selector in primary_selectors:
+                try:
+                    elements = self.driver.find_elements(By.XPATH, selector)
+                    for element in elements:
+                        phone = self._extract_phone_from_element(element)
+                        if phone:
+                            print(f"✅ Found phone via primary selector: {phone}")
+                            return phone
+                except:
+                    continue
+            
+            # Strategy 2: Contact info section selectors
+            contact_selectors = [
+                "//div[contains(@class,'rogA2c')]//button[contains(@aria-label,'Phone')]",
+                "//div[contains(@class,'rogA2c')]//button[contains(@aria-label,'Call')]",
+                "//div[contains(@class,'rogA2c')]//div[contains(@class,'Io6YTe')]",
+                "//a[starts-with(@href,'tel:')]",
+            ]
+            
+            for selector in contact_selectors:
+                try:
+                    elements = self.driver.find_elements(By.XPATH, selector)
+                    for element in elements:
+                        phone = self._extract_phone_from_element(element)
+                        if phone:
+                            print(f"✅ Found phone via contact selector: {phone}")
+                            return phone
+                except:
+                    continue
+            
+            # Strategy 3: Text-based selectors (look for phone patterns in visible text)
+            text_selectors = [
+                "//span[contains(text(),'(') and contains(text(),')') and string-length(text()) > 10]",
+                "//div[contains(text(),'(') and contains(text(),')') and string-length(text()) > 10]",
+                "//div[contains(@class,'fontBodyMedium') and (contains(text(),'(') or contains(text(),'-'))]",
+            ]
+            
+            for selector in text_selectors:
+                try:
+                    elements = self.driver.find_elements(By.XPATH, selector)
+                    for element in elements:
+                        phone = self._extract_phone_from_element(element)
+                        if phone:
+                            print(f"✅ Found phone via text selector: {phone}")
+                            return phone
+                except:
+                    continue
+            
+            # Strategy 4: Broad search in page source (last resort)
+            print("🔍 Searching page source for phone patterns...")
+            page_source = self.driver.page_source
+            for pattern in self.phone_patterns:
+                matches = pattern.findall(page_source)
+                for match in matches:
+                    if isinstance(match, tuple):
+                        match = ''.join(match)
+                    digits = re.sub(r'\D', '', str(match))
+                    if len(digits) >= 10:
+                        print(f"✅ Found phone in page source: {match}")
+                        return str(match)
+            
+            return None
+            
+        except Exception as e:
+            print(f"❌ Phone extraction error: {e}")
+            return None
+    
+    def _extract_phone_from_element(self, element):
+        """
+        Extract phone number from a single element
+        """
+        try:
+            # Get text from multiple sources
+            text_sources = [
+                element.get_attribute('aria-label') or '',
+                element.get_attribute('href') or '',
+                element.get_attribute('data-item-id') or '',
+                element.text or ''
+            ]
+            
+            for text in text_sources:
+                if not text:
+                    continue
+                    
+                # Clean the text
+                text = text.replace('tel:', '').replace('Phone: ', '').replace('Call ', '').replace('phone:tel:', '')
+                
+                # Try each pattern
+                for pattern in self.phone_patterns:
+                    match = pattern.search(text)
+                    if match:
+                        phone = match.group(0) if not isinstance(match.group(0), tuple) else ''.join(match.group(0))
+                        # Validate - must have at least 10 digits
+                        digits = re.sub(r'\D', '', phone)
+                        if len(digits) >= 10:
+                            return phone
+            
+            return None
+            
+        except Exception as e:
             return None
 
     def run_extraction(self):
