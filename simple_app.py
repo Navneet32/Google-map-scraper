@@ -472,7 +472,7 @@ async def test_google_maps_scraper():
         # Run extraction with small test
         print("🚀 Starting enhanced extraction process...")
         scraper = EnhancedGoogleMapsBusinessScraper("coffee shops in San Francisco", max_results=3)
-        results = scraper.scrape()
+        results = scraper.run_extraction()
         scraper.cleanup()
         print(f"✅ Extraction completed. Results type: {type(results)}")
 
@@ -524,7 +524,7 @@ async def scrape_google_maps(request: SearchRequest):
         # Run extraction with enhanced scraper
         print("🚀 Starting enhanced extraction process...")
         scraper = EnhancedGoogleMapsBusinessScraper(request.query, max_results=request.max_results)
-        results = scraper.scrape()
+        results = scraper.run_extraction()
         scraper.cleanup()
         print(f"✅ Extraction completed. Found {len(results) if results else 0} results")
 
